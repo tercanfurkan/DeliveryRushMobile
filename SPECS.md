@@ -2,7 +2,7 @@
 
 ## Concept
 
-A GTA2-style top-down mobile game where the player is a delivery courier — not a gangster. The player earns money by completing package deliveries across a miniature animated city. Speed matters, but crashes cost money. The tone is energetic and arcade-y with a stylized-but-real-looking aesthetic.
+A top-down 2D arcade mobile game where the player is a delivery courier. The player earns money by completing package deliveries across a miniature animated city. Speed matters, but crashes cost money. The tone is energetic and arcade-y with a stylized-but-real-looking aesthetic.
 
 ## Core Loop
 
