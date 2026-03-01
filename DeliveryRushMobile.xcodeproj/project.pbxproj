@@ -27,6 +27,7 @@
 		105FC57A2E9EAD3100EA8BCF /* DeliveryRushMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeliveryRushMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5892E9EAD3200EA8BCF /* DeliveryRushMobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeliveryRushMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5932E9EAD3200EA8BCF /* DeliveryRushMobileUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeliveryRushMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AABB00112E9EAD3200EA8BCF /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Local.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +80,7 @@
 				105FC58C2E9EAD3200EA8BCF /* DeliveryRushMobileTests */,
 				105FC5962E9EAD3200EA8BCF /* DeliveryRushMobileUITests */,
 				105FC57B2E9EAD3100EA8BCF /* Products */,
+				AABB00112E9EAD3200EA8BCF /* Local.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -392,12 +394,12 @@
 		};
 		105FC59E2E9EAD3200EA8BCF /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AABB00112E9EAD3200EA8BCF /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -425,12 +427,12 @@
 		};
 		105FC59F2E9EAD3200EA8BCF /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AABB00112E9EAD3200EA8BCF /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;

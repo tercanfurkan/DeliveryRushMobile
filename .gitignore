@@ -13,5 +13,8 @@ build/
 # macOS
 .DS_Store
 
+# Local developer secrets (never commit)
+Local.xcconfig
+
 # Claude
 .claude/

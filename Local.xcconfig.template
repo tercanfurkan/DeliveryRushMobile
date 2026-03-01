@@ -1,0 +1,5 @@
+// Local.xcconfig.template — committed reference, copy to Local.xcconfig
+// cp Local.xcconfig.template Local.xcconfig
+// Then fill in your Apple Developer Team ID (Xcode > Settings > Accounts).
+
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
