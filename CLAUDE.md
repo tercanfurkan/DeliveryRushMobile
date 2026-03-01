@@ -4,14 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
-Standard Xcode project, no package manager. Available simulators: iPhone 17 Pro (iOS 26.2), target iOS 18+.
+Standard Xcode project, no package manager. Target iOS 18+. Signing via `Local.xcconfig` (gitignored) — copy from `Local.xcconfig.template`.
 
 ```bash
+# Simulator (iPhone 17 Pro, id: 354EA372-3DC4-4D98-9038-7BF2C83A2BA5)
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+xcrun simctl install booted <app-path> && xcrun simctl launch booted com.nollayks.deliveryrush
 
-# Install & launch on booted simulator (id: 354EA372-3DC4-4D98-9038-7BF2C83A2BA5)
-xcrun simctl install booted <app-path> && xcrun simctl launch booted app.rork.delivery-rush-mobile
+# Physical device — get UDID via: xcrun devicectl list devices
+xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
+  -destination 'platform=iOS,id=<DEVICE_UDID>' -configuration Debug build
+xcrun devicectl device install app --device <DEVICE_UDID> <app-path>
+xcrun devicectl device process launch --device <DEVICE_UDID> com.nollayks.deliveryrush
 ```
 
 ## Architecture

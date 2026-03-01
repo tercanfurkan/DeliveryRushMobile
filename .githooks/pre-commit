@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Pre-commit hook: block commits containing sensitive identifiers.
+# Install once per clone: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+STAGED=$(git diff --cached --name-only)
+[ -z "$STAGED" ] && exit 0
+
+TMPFILE=$(mktemp)
+git diff --cached -- $STAGED > "$TMPFILE"
+DIFF=$(cat "$TMPFILE")
+rm "$TMPFILE"
+
+FOUND=0
+
+alert() {
+  echo "🚨 SENSITIVE DATA DETECTED: $1"
+  echo "   Pattern : $2"
+  echo "   Match   : $3"
+  FOUND=1
+}
+
+# Apple Developer Team ID — 10-char uppercase alphanumeric, not a placeholder
+while IFS= read -r line; do
+  if [[ "$line" =~ ^\+ ]]; then
+    if echo "$line" | grep -qE 'DEVELOPMENT_TEAM\s*=\s*[A-Z0-9]{10}\b'; then
+      match=$(echo "$line" | grep -oE '[A-Z0-9]{10}')
+      alert "Apple Developer Team ID" "DEVELOPMENT_TEAM = <ID>" "$match"
+    fi
+  fi
+done <<< "$DIFF"
+
+# Physical device UDIDs — 40-char hex (old style) or UUID-ish with 00008 prefix
+while IFS= read -r line; do
+  if [[ "$line" =~ ^\+ ]]; then
+    if echo "$line" | grep -qE '[0-9a-fA-F]{40}'; then
+      match=$(echo "$line" | grep -oE '[0-9a-fA-F]{40}')
+      alert "Device UDID (40-char hex)" "<40-char hex>" "$match"
+    fi
+    if echo "$line" | grep -qE '00008[0-9a-fA-F]{3}-[0-9a-fA-F]{16}'; then
+      match=$(echo "$line" | grep -oE '00008[0-9a-fA-F]{3}-[0-9a-fA-F]{16}')
+      alert "Device UDID (modern format)" "<DEVICE_UDID>" "$match"
+    fi
+  fi
+done <<< "$DIFF"
+
+# Provisioning profile / generic UUID that looks like a secret context
+# (Only flag UUIDs in .xcconfig, .plist, or build settings files)
+CURRENT_FILE=""
+while IFS= read -r line; do
+  if [[ "$line" =~ ^\+\+\+.*\.(xcconfig|plist)$ ]]; then
+    CURRENT_FILE="$line"
+  fi
+  if [[ "$line" =~ ^\+ ]] && echo "$CURRENT_FILE" | grep -qE '\.(xcconfig|plist)$'; then
+    if echo "$line" | grep -qiE '(PROVISIONING_PROFILE_SPECIFIER|PROVISIONING_PROFILE)\s*=\s*[A-Za-z0-9-]{36}'; then
+      match=$(echo "$line" | grep -oE '[A-Za-z0-9-]{36}')
+      alert "Provisioning Profile UUID" "PROVISIONING_PROFILE" "$match"
+    fi
+  fi
+done <<< "$DIFF"
+
+# Generic secret patterns
+while IFS= read -r line; do
+  if [[ "$line" =~ ^\+ ]]; then
+    if echo "$line" | grep -qiE '(api_key|api_secret|access_token|secret_key|private_key|password|auth_token)\s*[=:]\s*["\x27]?[A-Za-z0-9/_+=-]{16,}'; then
+      alert "Possible API key / secret" "api_key/secret/token" "${line:0:80}"
+    fi
+  fi
+done <<< "$DIFF"
+
+if [ "$FOUND" -ne 0 ]; then
+  echo ""
+  echo "Commit blocked. Remove the sensitive values before committing."
+  echo "If a value is intentionally a placeholder (e.g. YOUR_TEAM_ID), the hook will not flag it."
+  echo "To bypass in an emergency: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
