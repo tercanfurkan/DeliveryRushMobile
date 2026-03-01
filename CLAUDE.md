@@ -4,55 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
-This is a standard Xcode project — no Makefile or package manager.
+Standard Xcode project, no package manager. Available simulators: iPhone 17 Pro (iOS 26.2), target iOS 18+.
 
 ```bash
-# Build
-xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile -configuration Debug build
-
-# Run tests
-xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile test
-
-# Run on specific simulator
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 15' build
-```
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 
-From Xcode: `Cmd+B` (build), `Cmd+R` (run), `Cmd+U` (test).
+# Install & launch on booted simulator (id: 354EA372-3DC4-4D98-9038-7BF2C83A2BA5)
+xcrun simctl install booted <app-path> && xcrun simctl launch booted app.rork.delivery-rush-mobile
+```
 
 ## Architecture
 
-**DeliveryRushMobile** is a SpriteKit-based iOS game with a SwiftUI overlay UI. It follows an MVVM-like structure, though `GameViewModel` is currently empty.
+SpriteKit game engine + SwiftUI overlay UI, MVVM pattern.
 
-### Layer overview
+- **`GameScene.swift`** — all game logic: city generation, physics, traffic, police, missions, camera
+- **`GameViewModel.swift`** — `@Observable` state bridge between scene and views; holds city locations, mission logic, score
+- **`GameModels.swift`** — shared types: `MissionType`, `PhysicsCategory` bitmasks, `CityConfig` (10×10 grid, 70pt roads), `CityLocation`
+- **`SoundManager.swift`** — all audio synthesized at runtime via AVAudioEngine (no asset files); 135 BPM music + SFX
+- **`Views/`** — `GamePlayView` (HUD + SpriteView), `MinimapView` (Canvas), `JoystickView`, `MainMenuView`
 
-| Layer | Files | Responsibility |
-|-------|-------|----------------|
-| SwiftUI Views | `Views/` | HUD, menus, joystick, minimap |
-| Game Engine | `Game/GameScene.swift` | All SpriteKit physics and game logic |
-| Models | `Models/GameModels.swift` | Enums and structs shared across layers |
-| Services | `Services/SoundManager.swift` | Procedural audio synthesis via AVAudioEngine |
-| ViewModel | `ViewModels/GameViewModel.swift` | **Currently empty** — game state bridge |
+## Key design details
 
-### Key files
-
-- **`GameScene.swift`** (~1,147 lines) — the core game. Handles city generation, player physics, traffic/pedestrian spawning, police behavior, collision detection, mission markers, and camera. Player max speed is 280 units/s, thrust force 900, turn speed 5.5 rad/s.
-- **`GameModels.swift`** — defines `MissionType` (food/envelope/mafia), `GamePhase`, `LocationType`, `PhysicsCategory` bitmasks, `CityConfig` (10×10 grid), and `SoundEffect`.
-- **`GamePlayView.swift`** — embeds `SpriteView(scene:)` and overlays the HUD, mission banner, joystick, crash flash, delivery popup, and game over screen.
-- **`SoundManager.swift`** — generates all audio at runtime (no audio asset files). Produces 135 BPM background music and synthesized SFX (pickup chord, delivery arpeggio, crash noise, police siren) using sine/square/triangle/noise waveforms via AVAudioEngine.
-- **`MinimapView.swift`** — Canvas-based mini-map that scales world coordinates to show roads, buildings, player (yellow), pickup (green), and delivery target (orange).
-- **`JoystickView.swift`** — drag-based virtual joystick that returns a normalized `CGVector` direction to `GameScene`.
-
-### Mission system
-
-- **Food delivery** — 50 pts, 50 s timer
-- **Express envelope** — 75 pts, 40 s timer
-- **Suspicious package (mafia)** — 200 pts, 65 s timer, police spawned
-
-### Physics
-
-All collision detection uses `PhysicsCategory` bitmasks defined in `GameModels.swift`. A crash triggers the red-flash overlay in `GamePlayView` and ends the game.
-
-## Frameworks
-
-No external dependencies — only Apple frameworks: SwiftUI, SpriteKit, AVFoundation, CoreGraphics, Foundation.
+- City is a 10×10 block grid. `CityConfig.cellSize = blockSize(110) + roadWidth(70) = 180pt`
+- Player physics: max speed 280, thrust 900, turn 5.5 rad/s; `PhysicsCategory` bitmasks gate all contacts
+- Missions: food ($50/50s), envelope ($75/40s), mafia ($200/65s + police chase)
+- Building textures are cached by seed (`[Int: SKTexture]`); traffic velocities stored in `[ObjectIdentifier: CGVector]`
+- Pedestrians are driven by `SKAction` (no per-frame update); traffic lights updated via stored `[SKShapeNode]` arrays
