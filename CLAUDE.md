@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Standard Xcode project, no package manager. Target iOS 18+. Signing via `Local.xcconfig` (gitignored) — copy from `Local.xcconfig.template`.
 
 ```bash
-# Simulator (iPhone 17 Pro, id: 354EA372-3DC4-4D98-9038-7BF2C83A2BA5)
+# Simulator
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 xcrun simctl install booted <app-path> && xcrun simctl launch booted com.nollayks.deliveryrush
