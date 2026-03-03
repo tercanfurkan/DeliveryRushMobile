@@ -39,11 +39,14 @@ class SoundManager {
             try engine?.start()
             musicPlayer?.play()
             effectPlayer?.play()
-            if let buffer = generateMusicLoop(track: currentTrack) {
-                musicPlayer?.scheduleBuffer(buffer, at: nil, options: .loops)
-            }
             isPlaying = true
-        } catch {}
+        } catch { return }
+        let track = currentTrack
+        let player = musicPlayer
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self, let buffer = self.generateMusicLoop(track: track) else { return }
+            player?.scheduleBuffer(buffer, at: nil, options: .loops)
+        }
     }
 
     func stopMusic() {
@@ -58,9 +61,11 @@ class SoundManager {
         currentTrack = track
         guard isPlaying else { return }
         musicPlayer?.stop()
-        if let buffer = generateMusicLoop(track: track) {
-            musicPlayer?.scheduleBuffer(buffer, at: nil, options: .loops)
-            musicPlayer?.play()
+        let player = musicPlayer
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self, let buffer = self.generateMusicLoop(track: track) else { return }
+            player?.scheduleBuffer(buffer, at: nil, options: .loops)
+            player?.play()
         }
     }
 

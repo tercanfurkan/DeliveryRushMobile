@@ -1049,7 +1049,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         guard let vm = viewModel else { return }
 
         if policeNode.children.isEmpty {
-            vm.policeChaseDistance = .infinity
+            if vm.policeChaseDistance != .infinity { vm.policeChaseDistance = .infinity }
             return
         }
 
@@ -1069,8 +1069,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             if dist < minDist { minDist = dist }
         }
 
-        // D1 - Update police chase distance
-        vm.policeChaseDistance = minDist
+        // D1 - Update police chase distance (5pt threshold avoids per-frame @Observable triggers)
+        if abs(minDist - vm.policeChaseDistance) > 5 {
+            vm.policeChaseDistance = minDist
+        }
     }
 
     private func updateTrafficLights(_ dt: TimeInterval) {

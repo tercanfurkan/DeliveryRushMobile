@@ -139,16 +139,18 @@ class GameViewModel {
         currentTheme = CityTheme.theme(for: currentLevel)
 
         generateShops()
+        makeScene()
+        soundManager.startMusic()
+        generateMission()
+    }
 
+    private func makeScene() {
         let scene = GameScene()
         scene.size = CGSize(width: 390, height: 844)
         scene.scaleMode = .resizeFill
         scene.viewModel = self
         scene.cityTheme = currentTheme
         gameScene = scene
-
-        soundManager.startMusic()
-        generateMission()
     }
 
     // MARK: - Level Progression (C1)
@@ -167,19 +169,12 @@ class GameViewModel {
     }
 
     private func rebuildScene() {
-        let scene = GameScene()
-        scene.size = CGSize(width: 390, height: 844)
-        scene.scaleMode = .resizeFill
-        scene.viewModel = self
-        scene.cityTheme = currentTheme
-        gameScene = scene
+        isShopOpen = false
+        nearbyShop = nil
+        generateShops()
+        makeScene()
         soundManager.switchTrack(currentTheme.musicTrack)
         generateMission()
-    }
-
-    func completeLevelTransition() {
-        pendingLevelTransition = false
-        rebuildScene()
     }
 
     func generateMission() {
@@ -250,18 +245,11 @@ class GameViewModel {
         missionMessage = "+$\(earned)! Nice delivery!"
 
         // C1 - check for level advance
-        if deliveriesThisLevel >= 10 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                guard self?.gamePhase == .playing else { return }
-                self?.showDeliveryComplete = false
-                self?.advanceLevel()
-            }
-        } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                guard self?.gamePhase == .playing else { return }
-                self?.showDeliveryComplete = false
-                self?.generateMission()
-            }
+        let shouldAdvance = deliveriesThisLevel >= 10
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard self?.gamePhase == .playing else { return }
+            self?.showDeliveryComplete = false
+            if shouldAdvance { self?.advanceLevel() } else { self?.generateMission() }
         }
     }
 
