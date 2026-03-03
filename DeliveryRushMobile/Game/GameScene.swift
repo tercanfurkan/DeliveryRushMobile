@@ -37,6 +37,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private var buildingTextureCache: [Int: SKTexture] = [:]
     private var npcVelocities: [ObjectIdentifier: CGVector] = [:]
+    private var redLightStoppedVelocities: [ObjectIdentifier: CGVector] = [:]
+    private var redLightViolationCooldown: TimeInterval = 0
 
     // Player physics (updated by scooter tier in setupPlayer)
     private var maxSpeed: CGFloat = 280
@@ -613,6 +615,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         markerNode.addChild(marker)
         pickupMarker = marker
         deliveryMarker = nil
+        missionTimerActive = true
     }
 
     func showDeliveryMarker() {
@@ -645,7 +648,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         markerNode.addChild(windowGlow)
 
         playerNode.childNode(withName: "//packageIndicator")?.isHidden = false
-        missionTimerActive = true
     }
 
     private func createMarker(at position: CGPoint, color: UIColor, label: String, emoji: String, name: String) -> SKNode {
@@ -838,6 +840,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 
         trafficNode.addChild(vehicle)
+
+        // If traffic light is red, stop the newly spawned car immediately
+        if !trafficLightGreen {
+            let id = ObjectIdentifier(vehicle)
+            if let vel = npcVelocities[id] {
+                redLightStoppedVelocities[id] = vel
+                npcVelocities[id] = .zero
+            }
+        }
     }
 
     private func createTrafficVehicle() -> SKNode {
@@ -970,6 +981,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         updateTraffic(dt)
         updatePolice(dt)
         updateTrafficLights(dt)
+        updateTrafficAtLights()
+        updateRedLightViolation(dt)
         updateMissionTimer(dt)
         updateThrowProximity()
         updateShopProximity()
@@ -1042,7 +1055,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // A2 - Widen removal threshold to ±150 to despawn before visual clustering
             if vehicle.position.x < -150 || vehicle.position.x > ws + 150 ||
                vehicle.position.y < -150 || vehicle.position.y > ws + 150 {
-                npcVelocities.removeValue(forKey: ObjectIdentifier(vehicle))
+                let id = ObjectIdentifier(vehicle)
+                npcVelocities.removeValue(forKey: id)
+                redLightStoppedVelocities.removeValue(forKey: id)
                 vehicle.removeFromParent()
             }
         }
@@ -1087,6 +1102,62 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let rColor = trafficLightGreen ? tlRedOff  : tlRedOn
         for light in greenLightNodes { light.fillColor = gColor }
         for light in redLightNodes   { light.fillColor = rColor }
+    }
+
+    private func updateTrafficAtLights() {
+        guard !trafficNode.children.isEmpty else { return }
+        if trafficLightGreen {
+            // Restore all cars that were stopped at the red light
+            guard !redLightStoppedVelocities.isEmpty else { return }
+            for node in trafficNode.children {
+                let id = ObjectIdentifier(node)
+                if let savedVel = redLightStoppedVelocities[id] {
+                    npcVelocities[id] = savedVel
+                    redLightStoppedVelocities.removeValue(forKey: id)
+                }
+            }
+        } else {
+            // Stop all moving cars that haven't been stopped yet
+            for node in trafficNode.children {
+                let id = ObjectIdentifier(node)
+                guard redLightStoppedVelocities[id] == nil else { continue }
+                if let stored = npcVelocities[id], stored.dx != 0 || stored.dy != 0 {
+                    redLightStoppedVelocities[id] = stored
+                    npcVelocities[id] = .zero
+                }
+            }
+        }
+    }
+
+    private func isPlayerAtIntersection() -> Bool {
+        let pos = playerNode.position
+        let cs = CityConfig.cellSize
+        let roadHalf = CityConfig.roadWidth / 2
+        let nearHorizontal = pos.y.truncatingRemainder(dividingBy: cs) < roadHalf * 1.5 ||
+                             pos.y.truncatingRemainder(dividingBy: cs) > cs - roadHalf * 1.5
+        let nearVertical = pos.x.truncatingRemainder(dividingBy: cs) < roadHalf * 1.5 ||
+                           pos.x.truncatingRemainder(dividingBy: cs) > cs - roadHalf * 1.5
+        return nearHorizontal && nearVertical
+    }
+
+    private func updateRedLightViolation(_ dt: TimeInterval) {
+        redLightViolationCooldown = max(0, redLightViolationCooldown - dt)
+        guard redLightViolationCooldown <= 0 else { return }
+        guard let vm = viewModel, !trafficLightGreen else { return }
+        let speed = hypot(playerNode.physicsBody?.velocity.dx ?? 0, playerNode.physicsBody?.velocity.dy ?? 0)
+        guard speed > 80, isPlayerAtIntersection() else { return }
+
+        // Player ran a red light
+        redLightViolationCooldown = 8.0
+        vm.applyCrashPenalty(10)
+        vm.policeAlert = true
+        if vm.currentMission?.type != .mafia {
+            vm.missionMessage = "Red light! Police notified!"
+            vm.missionIconName = "🚓"
+        }
+        if policeNode.children.isEmpty {
+            spawnPolice()
+        }
     }
 
     private func updateMissionTimer(_ dt: TimeInterval) {
