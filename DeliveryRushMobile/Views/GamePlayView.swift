@@ -68,7 +68,7 @@ struct GamePlayView: View {
             .background(.black.opacity(0.6))
             .clipShape(.rect(cornerRadius: 12))
 
-            if viewModel.currentMission?.pickedUp == true {
+            if viewModel.currentMission != nil {
                 HStack(spacing: 6) {
                     Image(systemName: "timer")
                         .foregroundStyle(timerColor)
