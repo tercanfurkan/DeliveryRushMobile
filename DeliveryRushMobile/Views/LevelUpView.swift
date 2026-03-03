@@ -7,7 +7,6 @@ struct LevelUpView: View {
     @State private var slideOffset: CGFloat = 400
     @State private var opacity: Double = 0
     @State private var dotPhase: Int = 0
-    private let dotTimer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -45,11 +44,13 @@ struct LevelUpView: View {
             .offset(y: slideOffset)
             .opacity(opacity)
         }
-        .onReceive(dotTimer) { _ in
-            dotPhase += 1
+        .task {
+            while true {
+                try? await Task.sleep(for: .seconds(0.4))
+                dotPhase += 1
+            }
         }
         .onAppear {
-            // Slide-up entrance animation
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 slideOffset = 0
                 opacity = 1.0

@@ -347,6 +347,7 @@ class GameViewModel {
             money -= color.price
             ownedColors.insert(color)
             scooterColor = color
+            gameScene?.applyScooterColor(color)
 
         case .portalStore:
             guard deliveriesThisLevel >= 8, money >= 100 else { return }
@@ -369,5 +370,6 @@ class GameViewModel {
     func equipColor(_ color: ScooterColor) {
         guard ownedColors.contains(color) else { return }
         scooterColor = color
+        gameScene?.applyScooterColor(color)
     }
 }

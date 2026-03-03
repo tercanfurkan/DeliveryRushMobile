@@ -492,7 +492,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         ring.fillColor = .clear
         ring.strokeColor = shop.type.signColor
         ring.lineWidth = 2
-        ring.lineDashPattern = [NSNumber(value: 6), NSNumber(value: 4)]
         ring.zPosition = 11
         ring.alpha = 0.6
         let pulse = SKAction.sequence([
@@ -529,6 +528,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let strokeClr = scooterColor.strokeColor
 
         let body = SKShapeNode(rectOf: CGSize(width: 22, height: 12), cornerRadius: 3)
+        body.name = "playerBody"
         body.fillColor = bodyColor
         body.strokeColor = strokeClr
         body.lineWidth = 1.5
@@ -592,6 +592,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let boundaryNode = SKNode()
         boundaryNode.physicsBody = boundary
         worldNode.addChild(boundaryNode)
+    }
+
+    func applyScooterColor(_ color: ScooterColor) {
+        guard let body = playerNode.childNode(withName: "playerBody") as? SKShapeNode else { return }
+        body.fillColor = color.bodyColor
+        body.strokeColor = color.strokeColor
     }
 
     // MARK: - Mission Markers
