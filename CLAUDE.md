@@ -92,9 +92,27 @@ If any check fails: diagnose and fix before considering the task done. Do not sk
 
 ### Each agent's routine (atomic work)
 1. Read relevant files before modifying anything
-2. Implement the feature/fix
-3. Spin up an Opus subagent to run `/simplify` on the changes
-4. Commit with a descriptive message
+2. **Declare acceptance criteria** before writing any code (see below)
+3. Implement the feature/fix
+4. Spin up an Opus subagent to run `/simplify` on the changes
+5. Verify acceptance criteria are met
+6. Commit with a descriptive message
+
+### Acceptance criteria (required for every implementation agent)
+
+Every agent that is not the orchestrator or planner must explicitly state acceptance criteria at the start of their work and confirm each one before committing. Criteria must include at minimum:
+
+- **≥60% automated test coverage** for the changed logic — write or update tests in `DeliveryRushMobileTests/DeliveryRushMobileTests.swift`; focus on `GameViewModel` and `GameModels` logic; use `make test` to verify
+- **Manual test checklist** (if the change affects gameplay, UI, or audio) — list the specific in-game actions that must be verified, e.g. "tap THROW while package in flight → button stays disabled", "save & exit → continue → correct city and scooter restored"
+- **No regressions** — existing tests must still pass after the change
+
+Format to use at the start of each agent's work:
+```
+## Acceptance Criteria
+- [ ] Tests: <what is being tested and target coverage>
+- [ ] Manual: <specific actions to verify, or N/A>
+- [ ] Regressions: all existing tests pass
+```
 
 ### /simplify
 Run `/simplify` (via `Skill` tool) after every significant body of changes. It reviews for:
