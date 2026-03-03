@@ -394,10 +394,173 @@ extension CityTheme {
         policeStationGrid: (1, 2)
     )
 
+    // MARK: - Level 4-10 Cities
+
+    static let tokyo = CityTheme(
+        name: "Tokyo",
+        level: 4,
+        roadColor: UIColor(red: 0.10, green: 0.10, blue: 0.14, alpha: 1),
+        sidewalkColor: UIColor(red: 0.18, green: 0.18, blue: 0.24, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.08, green: 0.08, blue: 0.15, alpha: 1), // midnight black
+            UIColor(red: 0.65, green: 0.10, blue: 0.45, alpha: 1), // neon pink
+            UIColor(red: 0.10, green: 0.55, blue: 0.75, alpha: 1), // neon cyan
+            UIColor(red: 0.20, green: 0.18, blue: 0.30, alpha: 1), // deep indigo
+            UIColor(red: 0.50, green: 0.12, blue: 0.60, alpha: 1), // electric violet
+            UIColor(red: 0.15, green: 0.22, blue: 0.28, alpha: 1), // dark steel
+            UIColor(red: 0.80, green: 0.10, blue: 0.30, alpha: 1), // hot red neon
+            UIColor(red: 0.05, green: 0.40, blue: 0.50, alpha: 1), // teal glass
+        ],
+        backgroundColor: UIColor(red: 0.06, green: 0.06, blue: 0.10, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.90, green: 0.20, blue: 0.60, alpha: 1),
+        skylineEmoji: "🗼",
+        musicTrack: .electronic,
+        policeStationGrid: (2, 7)
+    )
+
+    static let london = CityTheme(
+        name: "London",
+        level: 5,
+        roadColor: UIColor(red: 0.25, green: 0.25, blue: 0.27, alpha: 1),
+        sidewalkColor: UIColor(red: 0.45, green: 0.44, blue: 0.42, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.48, green: 0.44, blue: 0.40, alpha: 1), // grey stone
+            UIColor(red: 0.55, green: 0.28, blue: 0.20, alpha: 1), // red brick
+            UIColor(red: 0.62, green: 0.58, blue: 0.50, alpha: 1), // Portland stone
+            UIColor(red: 0.38, green: 0.36, blue: 0.34, alpha: 1), // dark soot stone
+            UIColor(red: 0.70, green: 0.65, blue: 0.55, alpha: 1), // pale limestone
+            UIColor(red: 0.50, green: 0.42, blue: 0.36, alpha: 1), // warm brown brick
+            UIColor(red: 0.35, green: 0.40, blue: 0.38, alpha: 1), // slate grey
+            UIColor(red: 0.60, green: 0.52, blue: 0.44, alpha: 1), // sandstone
+        ],
+        backgroundColor: UIColor(red: 0.22, green: 0.22, blue: 0.24, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.85, green: 0.10, blue: 0.10, alpha: 1),
+        skylineEmoji: "🎡",
+        musicTrack: .jazz,
+        policeStationGrid: (3, 1)
+    )
+
+    static let paris = CityTheme(
+        name: "Paris",
+        level: 6,
+        roadColor: UIColor(red: 0.30, green: 0.28, blue: 0.26, alpha: 1),
+        sidewalkColor: UIColor(red: 0.58, green: 0.55, blue: 0.50, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.90, green: 0.87, blue: 0.78, alpha: 1), // Haussmann cream
+            UIColor(red: 0.82, green: 0.78, blue: 0.68, alpha: 1), // warm limestone
+            UIColor(red: 0.78, green: 0.72, blue: 0.60, alpha: 1), // pale ochre
+            UIColor(red: 0.88, green: 0.83, blue: 0.72, alpha: 1), // soft buff stone
+            UIColor(red: 0.75, green: 0.68, blue: 0.55, alpha: 1), // golden beige
+            UIColor(red: 0.70, green: 0.65, blue: 0.58, alpha: 1), // muted taupe
+            UIColor(red: 0.85, green: 0.80, blue: 0.70, alpha: 1), // pale champagne
+            UIColor(red: 0.65, green: 0.60, blue: 0.52, alpha: 1), // warm grey stone
+        ],
+        backgroundColor: UIColor(red: 0.26, green: 0.24, blue: 0.22, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.20, green: 0.30, blue: 0.70, alpha: 1),
+        skylineEmoji: "🗼",
+        musicTrack: .jazz,
+        policeStationGrid: (7, 8)
+    )
+
+    static let saoPaulo = CityTheme(
+        name: "Sao Paulo",
+        level: 7,
+        roadColor: UIColor(red: 0.22, green: 0.22, blue: 0.20, alpha: 1),
+        sidewalkColor: UIColor(red: 0.42, green: 0.40, blue: 0.36, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.75, green: 0.35, blue: 0.20, alpha: 1), // vivid terracotta
+            UIColor(red: 0.25, green: 0.60, blue: 0.35, alpha: 1), // tropical green
+            UIColor(red: 0.88, green: 0.70, blue: 0.18, alpha: 1), // bright yellow
+            UIColor(red: 0.20, green: 0.40, blue: 0.75, alpha: 1), // electric blue
+            UIColor(red: 0.72, green: 0.28, blue: 0.55, alpha: 1), // bold magenta
+            UIColor(red: 0.58, green: 0.58, blue: 0.55, alpha: 1), // concrete grey
+            UIColor(red: 0.85, green: 0.45, blue: 0.15, alpha: 1), // warm orange
+            UIColor(red: 0.35, green: 0.65, blue: 0.60, alpha: 1), // teal graffiti
+        ],
+        backgroundColor: UIColor(red: 0.18, green: 0.18, blue: 0.16, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.95, green: 0.75, blue: 0.10, alpha: 1),
+        skylineEmoji: "🌴",
+        musicTrack: .original,
+        policeStationGrid: (1, 8)
+    )
+
+    static let mumbai = CityTheme(
+        name: "Mumbai",
+        level: 8,
+        roadColor: UIColor(red: 0.32, green: 0.28, blue: 0.24, alpha: 1),
+        sidewalkColor: UIColor(red: 0.55, green: 0.48, blue: 0.40, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.78, green: 0.52, blue: 0.32, alpha: 1), // terracotta orange
+            UIColor(red: 0.85, green: 0.72, blue: 0.45, alpha: 1), // warm ochre
+            UIColor(red: 0.92, green: 0.90, blue: 0.85, alpha: 1), // colonial white
+            UIColor(red: 0.62, green: 0.50, blue: 0.38, alpha: 1), // dusky brown
+            UIColor(red: 0.30, green: 0.45, blue: 0.60, alpha: 1), // modern glass blue
+            UIColor(red: 0.75, green: 0.62, blue: 0.50, alpha: 1), // warm sand
+            UIColor(red: 0.45, green: 0.38, blue: 0.32, alpha: 1), // dark teak
+            UIColor(red: 0.88, green: 0.80, blue: 0.60, alpha: 1), // pale gold plaster
+        ],
+        backgroundColor: UIColor(red: 0.28, green: 0.22, blue: 0.18, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.95, green: 0.55, blue: 0.15, alpha: 1),
+        skylineEmoji: "🌊",
+        musicTrack: .original,
+        policeStationGrid: (8, 2)
+    )
+
+    static let lagos = CityTheme(
+        name: "Lagos",
+        level: 9,
+        roadColor: UIColor(red: 0.35, green: 0.25, blue: 0.18, alpha: 1),
+        sidewalkColor: UIColor(red: 0.55, green: 0.42, blue: 0.30, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.82, green: 0.35, blue: 0.15, alpha: 1), // laterite red-orange
+            UIColor(red: 0.25, green: 0.62, blue: 0.30, alpha: 1), // lush tropical green
+            UIColor(red: 0.92, green: 0.78, blue: 0.20, alpha: 1), // vivid yellow
+            UIColor(red: 0.15, green: 0.45, blue: 0.80, alpha: 1), // primary blue
+            UIColor(red: 0.70, green: 0.28, blue: 0.18, alpha: 1), // deep red clay
+            UIColor(red: 0.88, green: 0.58, blue: 0.22, alpha: 1), // orange clay
+            UIColor(red: 0.40, green: 0.70, blue: 0.40, alpha: 1), // palm green
+            UIColor(red: 0.95, green: 0.92, blue: 0.80, alpha: 1), // white render
+        ],
+        backgroundColor: UIColor(red: 0.30, green: 0.20, blue: 0.14, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.95, green: 0.70, blue: 0.05, alpha: 1),
+        skylineEmoji: "🌍",
+        musicTrack: .original,
+        policeStationGrid: (2, 1)
+    )
+
+    static let sydney = CityTheme(
+        name: "Sydney",
+        level: 10,
+        roadColor: UIColor(red: 0.28, green: 0.28, blue: 0.30, alpha: 1),
+        sidewalkColor: UIColor(red: 0.55, green: 0.52, blue: 0.46, alpha: 1),
+        buildingColors: [
+            UIColor(red: 0.82, green: 0.72, blue: 0.58, alpha: 1), // Hawkesbury sandstone
+            UIColor(red: 0.92, green: 0.90, blue: 0.88, alpha: 1), // bright white modern
+            UIColor(red: 0.30, green: 0.55, blue: 0.80, alpha: 1), // harbour blue glass
+            UIColor(red: 0.70, green: 0.62, blue: 0.50, alpha: 1), // warm sandstone
+            UIColor(red: 0.55, green: 0.70, blue: 0.80, alpha: 1), // sky-reflect blue
+            UIColor(red: 0.85, green: 0.82, blue: 0.75, alpha: 1), // pale buff
+            UIColor(red: 0.40, green: 0.60, blue: 0.70, alpha: 1), // coastal teal
+            UIColor(red: 0.75, green: 0.68, blue: 0.58, alpha: 1), // terracotta tile
+        ],
+        backgroundColor: UIColor(red: 0.45, green: 0.65, blue: 0.85, alpha: 1),
+        trafficAccentColor: UIColor(red: 0.10, green: 0.55, blue: 0.90, alpha: 1),
+        skylineEmoji: "🦘",
+        musicTrack: .electronic,
+        policeStationGrid: (7, 2)
+    )
+
     static func theme(for level: Int) -> CityTheme {
         switch level {
         case 2: return .istanbul
         case 3: return .riyadh
+        case 4: return .tokyo
+        case 5: return .london
+        case 6: return .paris
+        case 7: return .saoPaulo
+        case 8: return .mumbai
+        case 9: return .lagos
+        case 10: return .sydney
         default: return .newYork
         }
     }

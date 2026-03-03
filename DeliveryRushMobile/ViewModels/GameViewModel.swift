@@ -168,6 +168,12 @@ class GameViewModel {
         }
     }
 
+    func travelToLevel(_ level: Int) {
+        guard level > currentLevel, level <= 10 else { return }
+        currentLevel = level - 1
+        advanceLevel()
+    }
+
     private func rebuildScene() {
         isShopOpen = false
         nearbyShop = nil

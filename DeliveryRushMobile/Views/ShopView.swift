@@ -75,6 +75,11 @@ struct ShopView: View {
             return ScooterTier.allCases.map { tier in
                 let owned = viewModel.ownedScooters.contains(tier)
                 let equipped = viewModel.equippedScooter == tier
+                let previewColor: Color = switch tier {
+                case .basic: Color(red: 1.0, green: 0.55, blue: 0.15)
+                case .turbo: Color(red: 0.15, green: 0.50, blue: 0.90)
+                case .racing: Color(red: 0.85, green: 0.65, blue: 0.10)
+                }
                 return ShopItem(
                     id: "scooter_\(tier.rawValue)",
                     name: tier.displayName,
@@ -82,7 +87,8 @@ struct ShopView: View {
                     price: tier.price,
                     isOwned: owned,
                     isEquipped: equipped,
-                    canAfford: viewModel.money >= tier.price || owned
+                    canAfford: viewModel.money >= tier.price || owned,
+                    preview: .scooter(previewColor)
                 )
             }
 
@@ -97,7 +103,8 @@ struct ShopView: View {
                     price: track.price,
                     isOwned: owned,
                     isEquipped: equipped,
-                    canAfford: viewModel.money >= track.price || owned
+                    canAfford: viewModel.money >= track.price || owned,
+                    preview: .musicWave
                 )
             }
 
@@ -113,13 +120,12 @@ struct ShopView: View {
                     isOwned: owned,
                     isEquipped: equipped,
                     canAfford: viewModel.money >= color.price || owned,
-                    previewColor: Color(uiColor: color.bodyColor)
+                    preview: .color(Color(uiColor: color.bodyColor))
                 )
             }
 
         case .portalStore:
-            let canPortal = viewModel.deliveriesThisLevel >= 8
-            let isMaxLevel = viewModel.currentLevel >= 3
+            let isMaxLevel = viewModel.currentLevel >= 10
             if isMaxLevel {
                 return [ShopItem(
                     id: "portal_max",
@@ -129,20 +135,39 @@ struct ShopView: View {
                     isOwned: true,
                     isEquipped: false,
                     canAfford: false,
-                    isDisabled: true
+                    isDisabled: true,
+                    preview: .portal
                 )]
             } else {
-                let nextTheme = CityTheme.theme(for: viewModel.currentLevel + 1)
-                return [ShopItem(
-                    id: "portal_travel",
-                    name: "Travel to \(nextTheme.name)",
-                    description: canPortal ? "Warp to the next city!" : "Complete \(8 - viewModel.deliveriesThisLevel) more deliveries first",
-                    price: 100,
-                    isOwned: false,
-                    isEquipped: false,
-                    canAfford: viewModel.money >= 100 && canPortal,
-                    isDisabled: !canPortal
-                )]
+                let canPortal = viewModel.deliveriesThisLevel >= 8
+                let remaining = max(0, 8 - viewModel.deliveriesThisLevel)
+                return (viewModel.currentLevel + 1 ... 10).map { destLevel in
+                    let theme = CityTheme.theme(for: destLevel)
+                    let flavorText: String = switch destLevel {
+                    case 4: "Neon-lit streets and blazing speed"
+                    case 5: "Cobblestones, rain, and red buses"
+                    case 6: "Baguettes, boulevards, and bistros"
+                    case 7: "Concrete jungle bursting with colour"
+                    case 8: "Colonial chaos meets modern madness"
+                    case 9: "Red earth, vivid palms, unstoppable hustle"
+                    case 10: "Sun, harbour, and iconic skyline"
+                    default: "A brand new city awaits"
+                    }
+                    let desc = canPortal
+                        ? "\(theme.skylineEmoji) \(flavorText)"
+                        : "Complete \(remaining) more deliveries first"
+                    return ShopItem(
+                        id: "portal_\(destLevel)",
+                        name: "Travel to \(theme.name)",
+                        description: desc,
+                        price: 100,
+                        isOwned: false,
+                        isEquipped: false,
+                        canAfford: viewModel.money >= 100 && canPortal,
+                        isDisabled: !canPortal,
+                        preview: .portal
+                    )
+                }
             }
         }
     }
@@ -177,12 +202,25 @@ struct ShopView: View {
             }
 
         case .portalStore:
-            if item.id == "portal_travel" {
-                viewModel.purchaseItem(shopType: .portalStore, itemIndex: 0)
+            if item.id.hasPrefix("portal_"),
+               let levelStr = item.id.split(separator: "_").last,
+               let targetLevel = Int(levelStr) {
+                guard viewModel.money >= 100, viewModel.deliveriesThisLevel >= 8 else { return }
+                viewModel.money -= 100
+                viewModel.travelToLevel(targetLevel)
                 viewModel.isShopOpen = false
             }
         }
     }
+}
+
+// MARK: - Shop Item Preview
+
+enum ShopItemPreview {
+    case color(Color)
+    case scooter(Color)
+    case musicWave
+    case portal
 }
 
 // MARK: - Shop Item Model
@@ -197,6 +235,7 @@ struct ShopItem: Identifiable {
     let canAfford: Bool
     var isDisabled: Bool = false
     var previewColor: Color? = nil
+    var preview: ShopItemPreview? = nil
 }
 
 // MARK: - Shop Item Card
@@ -208,11 +247,13 @@ struct ShopItemCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Color preview swatch (paint store)
-            if let previewColor = item.previewColor {
+            // Preview artwork
+            if let preview = item.preview {
+                previewView(preview)
+            } else if let previewColor = item.previewColor {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(previewColor)
-                    .frame(height: 28)
+                    .frame(height: 44)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(.white.opacity(0.3), lineWidth: 1)
@@ -270,5 +311,165 @@ struct ShopItemCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(item.isEquipped ? accentColor.opacity(0.6) : .white.opacity(0.1), lineWidth: 1.5)
         )
+    }
+
+    @ViewBuilder
+    private func previewView(_ preview: ShopItemPreview) -> some View {
+        switch preview {
+        case .color(let c):
+            RoundedRectangle(cornerRadius: 6)
+                .fill(c)
+                .frame(height: 44)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(.white.opacity(0.3), lineWidth: 1)
+                )
+
+        case .scooter(let c):
+            scooterPreview(color: c)
+                .frame(height: 44)
+
+        case .musicWave:
+            musicWavePreview()
+                .frame(height: 44)
+
+        case .portal:
+            portalPreview()
+                .frame(height: 44)
+        }
+    }
+
+    @ViewBuilder
+    private func scooterPreview(color: Color) -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let cx = w / 2
+            let cy = h / 2
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(color.opacity(0.15))
+
+                // Body
+                Ellipse()
+                    .fill(color)
+                    .frame(width: w * 0.48, height: h * 0.38)
+                    .offset(x: 0, y: -h * 0.04)
+
+                // Rear wheel
+                Circle()
+                    .stroke(color, lineWidth: 3)
+                    .frame(width: h * 0.42, height: h * 0.42)
+                    .offset(x: -w * 0.20, y: h * 0.18)
+
+                // Front wheel
+                Circle()
+                    .stroke(color, lineWidth: 3)
+                    .frame(width: h * 0.38, height: h * 0.38)
+                    .offset(x: w * 0.22, y: h * 0.18)
+
+                // Handlebar
+                Path { path in
+                    let bx = cx + w * 0.16
+                    let by = cy - h * 0.10
+                    path.move(to: CGPoint(x: bx - 4, y: by - 8))
+                    path.addLine(to: CGPoint(x: bx + 4, y: by + 2))
+                }
+                .stroke(color.opacity(0.85), lineWidth: 2.5)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
+    @ViewBuilder
+    private func musicWavePreview() -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(red: 0.05, green: 0.12, blue: 0.22))
+
+                // Sine wave path
+                Path { path in
+                    let steps = 60
+                    let amplitude = h * 0.30
+                    let midY = h / 2
+                    path.move(to: CGPoint(x: 0, y: midY))
+                    for i in 1...steps {
+                        let x = w * CGFloat(i) / CGFloat(steps)
+                        let angle = CGFloat(i) / CGFloat(steps) * .pi * 4
+                        let y = midY - amplitude * sin(angle)
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+                .stroke(
+                    LinearGradient(
+                        colors: [Color(red: 0.15, green: 0.80, blue: 1.0), Color(red: 0.30, green: 0.40, blue: 1.0)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    lineWidth: 2
+                )
+
+                // Second wave (offset phase)
+                Path { path in
+                    let steps = 60
+                    let amplitude = h * 0.15
+                    let midY = h / 2
+                    path.move(to: CGPoint(x: 0, y: midY))
+                    for i in 1...steps {
+                        let x = w * CGFloat(i) / CGFloat(steps)
+                        let angle = CGFloat(i) / CGFloat(steps) * .pi * 4 + .pi / 2
+                        let y = midY - amplitude * sin(angle)
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+                .stroke(Color(red: 0.40, green: 0.80, blue: 1.0).opacity(0.45), lineWidth: 1.2)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
+    @ViewBuilder
+    private func portalPreview() -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            let cx = w / 2
+            let cy = h / 2
+            let maxR = min(w, h) * 0.44
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(red: 0.06, green: 0.02, blue: 0.14))
+
+                // Concentric arcs with varying hues to suggest a swirling portal
+                ForEach(0..<5) { i in
+                    let fraction = CGFloat(i + 1) / 5.0
+                    let radius = maxR * fraction
+                    let hue = 0.72 - Double(i) * 0.06 // purple to violet range
+                    let arcColor = Color(hue: hue, saturation: 0.85, brightness: 0.95)
+                    let rotOffset = Double(i) * 18.0 // degrees
+
+                    Circle()
+                        .trim(from: 0.05, to: 0.88)
+                        .stroke(arcColor.opacity(0.75 - Double(i) * 0.08), lineWidth: 2.5)
+                        .frame(width: radius * 2, height: radius * 2)
+                        .rotationEffect(.degrees(rotOffset))
+                        .position(x: cx, y: cy)
+                }
+
+                // Central glow dot
+                Circle()
+                    .fill(Color(hue: 0.78, saturation: 0.6, brightness: 1.0))
+                    .frame(width: 6, height: 6)
+                    .position(x: cx, y: cy)
+                    .blur(radius: 2)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
     }
 }
