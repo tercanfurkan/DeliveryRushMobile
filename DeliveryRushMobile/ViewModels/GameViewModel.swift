@@ -160,6 +160,7 @@ class GameViewModel {
         currentTheme = CityTheme.theme(for: currentLevel)
         generateShops()
         makeScene()
+        soundManager.switchTrack(activeTrack)
         soundManager.startMusic()
         generateMission()
     }
