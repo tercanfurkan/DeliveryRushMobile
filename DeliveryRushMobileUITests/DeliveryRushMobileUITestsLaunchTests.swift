@@ -1,4 +1,4 @@
-/
+//
 //  DeliveryRushMobileUITestsLaunchTests.swift
 //  DeliveryRushMobileUITests
 //
