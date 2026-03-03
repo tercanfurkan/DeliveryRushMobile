@@ -1214,6 +1214,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // E2 - Effect 0: Broken Window
     private func showBrokenWindowEffect(at position: CGPoint) {
+        viewModel?.soundManager.playEffect(.glassCrash)
         let shardCount = Int.random(in: 8...12)
         let shardColors: [UIColor] = [.white, UIColor(white: 0.8, alpha: 1), UIColor(white: 0.6, alpha: 1)]
         for _ in 0..<shardCount {
@@ -1254,6 +1255,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // E2 - Effect 1: Frightened Cat
     private func showFrightenedCatEffect(at position: CGPoint) {
+        viewModel?.soundManager.playEffect(.catMeow)
         let cat = SKLabelNode(text: "😺")
         cat.fontSize = 22
         cat.verticalAlignmentMode = .center
@@ -1292,6 +1294,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     // E2 - Effect 2: Angry Person
     private func showAngryPersonEffect(at position: CGPoint) {
+        viewModel?.soundManager.speakHey()
         let angry = SKLabelNode(text: "😡")
         angry.fontSize = 22
         angry.verticalAlignmentMode = .center
