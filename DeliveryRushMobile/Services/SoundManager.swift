@@ -70,6 +70,18 @@ class SoundManager: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
+    func pauseMusic() {
+        musicPlayer?.pause()
+    }
+
+    func resumeMusic() {
+        musicPlayer?.play()
+    }
+
+    func setMusicVolume(_ volume: Float) {
+        musicPlayer?.volume = volume
+    }
+
     func playEffect(_ effect: SoundEffect) {
         guard let buffer = generateEffectBuffer(effect) else { return }
         effectPlayer?.scheduleBuffer(buffer, at: nil)
