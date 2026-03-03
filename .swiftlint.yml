@@ -1,0 +1,37 @@
+# SwiftLint configuration for DeliveryRushMobile
+# Run: swiftlint lint
+
+# Paths to lint
+included:
+  - DeliveryRushMobile
+
+# Paths to exclude
+excluded:
+  - DeliveryRushMobileTests
+  - DeliveryRushMobileUITests
+  - .build
+  - DerivedData
+
+# Disabled rules (too noisy for a game project)
+disabled_rules:
+  - trailing_whitespace        # Not critical
+  - line_length                # Game logic needs long lines sometimes
+  - file_length                # GameScene.swift is intentionally large
+  - type_body_length           # GameScene, GameViewModel are large by design
+  - function_body_length       # generateCityBlock() etc. are intentionally long
+  - cyclomatic_complexity      # Game update loops are inherently complex
+  - todo                       # TODOs are fine during active dev
+  - force_unwrap               # Acceptable in SpriteKit context
+  - identifier_name            # Allow short names like dt, vm, dx, dy
+  - nesting                    # Nested types are fine
+
+# Enabled opt-in rules
+opt_in_rules:
+  - empty_collection_literal   # Prefer [] over .init()
+  - empty_string               # Prefer str.isEmpty over str == ""
+  - prefer_self_type_over_type_of_self
+  - redundant_nil_coalescing   # Warn on ?? nil
+  - unused_capture_list        # Warn on unused [weak self]
+
+# Configured rules
+warning_threshold: 20          # Fail if more than 20 warnings
