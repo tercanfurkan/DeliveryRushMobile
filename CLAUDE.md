@@ -4,20 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
-Standard Xcode project, no package manager. Target iOS 18+. Signing via `Local.xcconfig` (gitignored) — copy from `Local.xcconfig.template`.
+Standard Xcode project, no package manager. Target iOS 18+. Signing via `Local.xcconfig` (gitignored) — copy from `Local.xcconfig.template`. See README.md for full build and device install instructions.
 
+**Quick reference (all use iPhone 16 Pro simulator):**
 ```bash
-# Simulator
-xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-xcrun simctl install booted <app-path> && xcrun simctl launch booted com.nollayks.deliveryrush
-
-# Physical device — get UDID via: xcrun devicectl list devices
-xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
-  -destination 'platform=iOS,id=<DEVICE_UDID>' -configuration Debug build
-xcrun devicectl device install app --device <DEVICE_UDID> <app-path>
-xcrun devicectl device process launch --device <DEVICE_UDID> com.nollayks.deliveryrush
+make build     # build for simulator
+make test      # run unit tests
+make lint      # SwiftLint — requires: brew install swiftlint
+make coverage  # tests + coverage report
 ```
+
+For physical device builds, see README.md § "Building and running from the command line".
 
 ## Architecture
 
@@ -26,118 +23,94 @@ SpriteKit game engine + SwiftUI overlay UI, MVVM pattern.
 - **`GameScene.swift`** — all game logic: city generation, physics, traffic, police, missions, camera
 - **`GameViewModel.swift`** — `@Observable` state bridge between scene and views; holds city locations, mission logic, score
 - **`GameModels.swift`** — shared types: `MissionType`, `PhysicsCategory` bitmasks, `CityConfig` (10×10 grid, 70pt roads), `CityLocation`
-- **`SoundManager.swift`** — all audio synthesized at runtime via AVAudioEngine (no asset files); 135 BPM music + SFX
-- **`Views/`** — `GamePlayView` (HUD + SpriteView), `MinimapView` (Canvas), `JoystickView`, `MainMenuView`
+- **`SoundManager.swift`** — all audio synthesized at runtime via AVAudioEngine (no asset files); music + SFX
+- **`PersistenceManager.swift`** — UserDefaults singleton: save/load progress (level, money, upgrades); settings (isRightHanded, musicVolume) persist separately and are never cleared by clearSave()
+- **`Views/`** — `GamePlayView` (HUD + SpriteView), `MinimapView` (Canvas), `JoystickView`, `MainMenuView`, `ShopView`
 
-## Key design details
+## Key Design Details
 
 - City is a 10×10 block grid. `CityConfig.cellSize = blockSize(110) + roadWidth(70) = 180pt`
 - Player physics: max speed 280, thrust 900, turn 5.5 rad/s; `PhysicsCategory` bitmasks gate all contacts
 - Missions: food ($50/50s), envelope ($75/40s), mafia ($200/65s + police chase)
 - Building textures are cached by seed (`[Int: SKTexture]`); traffic velocities stored in `[ObjectIdentifier: CGVector]`
 - Pedestrians are driven by `SKAction` (no per-frame update); traffic lights updated via stored `[SKShapeNode]` arrays
-- `PersistenceManager.swift` — UserDefaults singleton: save/load/clearSave for progress; settings (isRightHanded, musicVolume) persist separately
 
-## Feature Overview (current)
+## Feature Overview
 
 - **Cities (10)**: New York(L1)→Istanbul(L2)→Riyadh(L3)→Tokyo(L4)→London(L5)→Paris(L6)→Sao Paulo(L7)→Mumbai(L8)→Lagos(L9)→Sydney(L10)
 - **Economy**: ScooterTier (basic/turbo/racing), GameTrack (8 tracks), ScooterColor (6 colors), 4 shop types per city
-- **Missions**: food($50/50s), envelope($75/40s), mafia($200/65s + police). Timer counts from mission assignment.
-- **Police**: chase on mafia pickup; also triggered by red light violations (8s cooldown, $10 fine)
-- **Crash penalties**: traffic $35, building $10, caught by police $100
-- **Throw**: `throwInFlight` flag prevents exploit; SFX: catMeow / glassCrash / "Hey!" (AVSpeechSynthesizer)
+- **Missions**: food/envelope/mafia; timer starts on assignment; time bonus on delivery
+- **Police**: chase on mafia pickup + red light violations (8s cooldown, $10 fine)
+- **Crash penalties**: traffic $35, building $10, caught by police $100; hard crash (speed>150) triggers police alert
+- **Throw**: `throwInFlight` flag prevents exploit; window-throw SFX: catMeow / glassCrash / "Hey!" (AVSpeechSynthesizer)
 - **Traffic AI**: cars stop at red lights (`redLightStoppedVelocities` dict), resume on green
-- **Pause/Save**: `pauseGame/resumeGame/saveAndExit` on `GameViewModel`; `hasSavedGame` drives "Continue" in main menu
+- **Pause/Save**: `pauseGame/resumeGame/saveAndExit/giveUp` on `GameViewModel`; saves level, money, all owned/equipped upgrades
 - **Settings**: `isRightHanded` mirrors joystick/action layout; `musicVolume` slider; clear save
 
 ## Ways of Working (Agent Workflow)
 
-When implementing significant features, follow this pattern:
-
-### Parallel agent teams with worktrees
-```bash
-# Agents work in isolated git worktrees — no .pbxproj edits needed (PBXFileSystemSynchronizedRootGroup)
-git worktree add .claude/worktrees/<name> -b <branch>
-# After agents complete, merge sequentially (least to most conflicting)
-git merge <branch> --no-ff
-```
-
 ### QA gate — REQUIRED before declaring work done
 
-The **orchestrator agent** (parent) MUST run all three checks after merging all worktrees. No task is complete until these pass cleanly:
+The **orchestrator agent** MUST run all three checks after merging worktrees. No task is complete until these pass:
 
 ```bash
-# 1. Lint (warnings ok, errors must be zero)
-make lint
-
-# 2. Build — must succeed with zero errors
-xcodebuild -project DeliveryRushMobile.xcodeproj \
-  -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  build 2>&1 | grep -E "error:|BUILD SUCCEEDED|BUILD FAILED"
-
-# 3. Tests — must pass
-xcodebuild test -project DeliveryRushMobile.xcodeproj \
-  -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' 2>&1 \
-  | grep -E "Test Suite|passed|failed"
-```
-
-Or with the Makefile shortcuts:
-```bash
+# Requires SwiftLint: brew install swiftlint
 make lint && make build && make test
 ```
 
-If any check fails: diagnose and fix before considering the task done. Do not skip or paper over failures with `--no-verify` or similar.
+If `make lint` is blocked by a missing SwiftLint install, fix the install rather than skipping the check. If any check fails: diagnose and fix the root cause — do not bypass with `--no-verify` or similar.
+
+### Parallel agent teams with worktrees
+
+Use worktrees when multiple agents work on independent features simultaneously. Not needed for serial bugfixes.
+
+```bash
+git worktree add .claude/worktrees/<name> -b <branch>
+# Merge sequentially after agents complete, least-to-most conflicting:
+git merge <branch> --no-ff
+```
+
+### Merge conflict strategy
+
+Merge in this order to minimise conflicts:
+
+1. `GameModels.swift` — low conflict
+2. `SoundManager.swift` — medium conflict
+3. `GameViewModel.swift` — **keep ALL state vars and MARK sections; never drop existing ones**
+4. `GameScene.swift` — preserve traffic removal block (±150 threshold) + dict cleanup
+5. `GamePlayView.swift` — preserve all overlays (shop/levelup/pause); add new ones after
 
 ### Each agent's routine (atomic work)
+
 1. Read relevant files before modifying anything
 2. **Declare acceptance criteria** before writing any code (see below)
 3. Implement the feature/fix
-4. Spin up an Opus subagent to run `/simplify` on the changes
+4. Run `/simplify` via the `Skill` tool on the changed code
 5. Verify acceptance criteria are met
 6. Commit with a descriptive message
 
-### Acceptance criteria (required for every implementation agent)
+### Acceptance criteria (every implementation agent — not orchestrator/planner)
 
-Every agent that is not the orchestrator or planner must explicitly state acceptance criteria at the start of their work and confirm each one before committing. Criteria must include at minimum:
+Declare these at the start of work and confirm each before committing:
 
-- **≥60% automated test coverage** for the changed logic — write or update tests in `DeliveryRushMobileTests/DeliveryRushMobileTests.swift`; focus on `GameViewModel` and `GameModels` logic; use `make test` to verify
-- **Manual test checklist** (if the change affects gameplay, UI, or audio) — list the specific in-game actions that must be verified, e.g. "tap THROW while package in flight → button stays disabled", "save & exit → continue → correct city and scooter restored"
-- **No regressions** — existing tests must still pass after the change
-
-Format to use at the start of each agent's work:
 ```
 ## Acceptance Criteria
-- [ ] Tests: <what is being tested and target coverage>
-- [ ] Manual: <specific actions to verify, or N/A>
-- [ ] Regressions: all existing tests pass
+- [ ] Tests: <specific logic covered, e.g. "GameViewModel.deliverPackage reward calc"> — run `make test`
+- [ ] Manual: <specific in-game actions to verify, e.g. "save & exit → continue → correct city restored"> — or N/A
+- [ ] Regressions: run `make test` before and after; all previously passing tests still pass
 ```
 
-### /simplify
-Run `/simplify` (via `Skill` tool) after every significant body of changes. It reviews for:
-- Unnecessary complexity / dead code
-- Reuse opportunities
-- Quality and efficiency issues
+**Testing standard:** ≥60% coverage for changed logic. Test file: `DeliveryRushMobileTests/DeliveryRushMobileTests.swift`. Focus on `GameViewModel` (economy, missions, shop, level) and `GameModels` (enums, structs). SpriteKit integration code that cannot be unit tested must be covered by the manual checklist instead.
 
-### TDD
-- Write unit tests alongside feature code (target ~60% coverage)
-- Focus tests on: `GameViewModel` economy/mission/shop logic, `GameModels` enums/structs
-- Test file: `DeliveryRushMobileTests/DeliveryRushMobileTests.swift`
-- Run via: `make test` (requires SwiftLint + xcodebuild)
+### /simplify
+
+Run `/simplify` (via `Skill` tool) after every significant body of changes. It reviews for unnecessary complexity, dead code, reuse opportunities, and efficiency issues.
 
 ### Static analysis
-- SwiftLint config: `.swiftlint.yml` (game-tuned — long files/functions allowed)
-- Run: `make lint` or `./scripts/lint.sh`
-- Exits 0 if SwiftLint not installed (CI-safe)
 
-### Merge conflict strategy
-Order merges from least-to-most conflicting. Common conflict sites:
-- `GameViewModel.swift`: keep ALL state vars + methods; never drop existing MARK sections
-- `GamePlayView.swift`: preserve existing overlays + add new ones; preserve shop/levelup/pause
-- `SoundManager.swift`: keep all music generators + add new cases
-- `GameScene.swift` traffic removal block: preserve wider ±150 threshold + new dict cleanup
+- SwiftLint config: `.swiftlint.yml` (game-tuned — long files/functions allowed)
+- Run: `make lint` — requires `brew install swiftlint`; exits 1 if not installed
 
 ### Bundling
-Bundle fixes + features together — no separate urgent bug fix PRs unless breaking.
 
+Combine bug fixes and related features in the same PR to avoid churn. Exception: crashes, data loss, or security issues may be fast-tracked as standalone fixes.

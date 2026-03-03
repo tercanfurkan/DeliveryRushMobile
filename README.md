@@ -46,34 +46,31 @@ Select your target device in the toolbar and press **⌘R** to build and run.
 
 ## Build, Test & Static Analysis
 
-A `Makefile` is included for all common tasks:
+A `Makefile` covers all common tasks. The default simulator target is **iPhone 16 Pro**.
 
 ```bash
-make build     # Build for simulator (iPhone 17 Pro)
+make build     # Build for simulator
 make test      # Run unit tests
-make lint      # Run SwiftLint (no-op if not installed)
+make coverage  # Run tests with code coverage report
+make lint      # Run SwiftLint (requires installation — see below)
 make lint-fix  # Auto-fix SwiftLint violations
 make open      # Open the project in Xcode
 make clean     # Clean derived data
 make help      # List all targets
 ```
 
-Install SwiftLint (optional but recommended):
+SwiftLint (optional but recommended — `make lint` will fail if not installed):
 ```bash
 brew install swiftlint
 ```
 
-### Building from the command line
+### Building and running from the command line
 
 ```bash
-# Simulator — build only
-xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-
 # Simulator — build and launch
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build \
-  | xcpretty
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+  CODE_SIGNING_ALLOWED=NO build
 APP=$(find ~/Library/Developer/Xcode/DerivedData -name "DeliveryRushMobile.app" | head -1)
 xcrun simctl install booted "$APP"
 xcrun simctl launch booted com.nollayks.deliveryrush
@@ -81,21 +78,12 @@ xcrun simctl launch booted com.nollayks.deliveryrush
 # Physical device — find your UDID with: xcrun devicectl list devices
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
   -destination 'platform=iOS,id=<DEVICE_UDID>' -configuration Debug build
-
 APP=$(find ~/Library/Developer/Xcode/DerivedData -name "DeliveryRushMobile.app" | head -1)
 xcrun devicectl device install app --device <DEVICE_UDID> "$APP"
 xcrun devicectl device process launch --device <DEVICE_UDID> com.nollayks.deliveryrush
 ```
 
-### Running tests
-
-```bash
-xcodebuild test -project DeliveryRushMobile.xcodeproj \
-  -scheme DeliveryRushMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-```
-
-Or simply: `make test`
+Note: `make build` and `make test` use `xcpretty` for formatted output if installed (`brew install xcpretty`), and fall back to raw xcodebuild output otherwise.
 
 ## Architecture
 
@@ -103,9 +91,10 @@ Or simply: `make test`
 |------|---------------|
 | `Game/GameScene.swift` | All game logic: city generation, physics, traffic, police, missions, camera |
 | `ViewModels/GameViewModel.swift` | `@Observable` state bridge between SpriteKit scene and SwiftUI views |
-| `Game/GameModels.swift` | Shared types: `MissionType`, `PhysicsCategory`, `CityConfig`, `CityLocation` |
-| `Services/SoundManager.swift` | Procedural audio via AVAudioEngine — 135 BPM music + SFX, no asset files |
-| `Views/` | `GamePlayView`, `MinimapView`, `JoystickView`, `MainMenuView` |
+| `Models/GameModels.swift` | Shared types: `MissionType`, `PhysicsCategory`, `CityConfig`, `CityLocation` |
+| `Services/SoundManager.swift` | Procedural audio via AVAudioEngine — music + SFX, no asset files |
+| `Services/PersistenceManager.swift` | UserDefaults save/load for game progress and settings |
+| `Views/` | `GamePlayView`, `MinimapView`, `JoystickView`, `MainMenuView`, `ShopView` |
 
 ## Sensitive Data Policy
 
