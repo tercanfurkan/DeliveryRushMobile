@@ -19,6 +19,15 @@ class GameViewModel {
     var missionIconName: String? = nil
     var policeAlert: Bool = false
     var playerPosition: CGPoint = .zero
+    var policeChaseDistance: CGFloat = .infinity
+
+    // Settings
+    var isRightHanded: Bool = false
+    var musicVolume: Float = 0.18
+
+    // Pause state
+    var isPaused: Bool = false
+    var hasSavedGame: Bool = false
 
     var gameScene: GameScene?
     let soundManager = SoundManager()
@@ -56,9 +65,15 @@ class GameViewModel {
 
     init() {
         soundManager.setup()
+        isRightHanded = PersistenceManager.shared.isRightHanded
+        musicVolume = PersistenceManager.shared.musicVolume
+        hasSavedGame = UserDefaults.standard.object(forKey: "money") != nil
+        PersistenceManager.shared.load(into: self)
+        soundManager.setMusicVolume(musicVolume)
     }
 
     func startGame() {
+        PersistenceManager.shared.clearSave()
         money = 100
         totalDeliveries = 0
         gamePhase = .playing
@@ -66,15 +81,61 @@ class GameViewModel {
         canThrow = false
         policeAlert = false
         playerPosition = .zero
+        policeChaseDistance = .infinity
 
+        makeScene()
+        soundManager.startMusic()
+        generateMission()
+    }
+
+    func continueGame() {
+        gamePhase = .playing
+        canThrow = false
+        policeAlert = false
+        playerPosition = .zero
+        policeChaseDistance = .infinity
+        isPaused = false
+
+        makeScene()
+        soundManager.startMusic()
+        generateMission()
+    }
+
+    private func makeScene() {
         let scene = GameScene()
         scene.size = CGSize(width: 390, height: 844)
         scene.scaleMode = .resizeFill
         scene.viewModel = self
         gameScene = scene
+    }
 
-        soundManager.startMusic()
-        generateMission()
+    func pauseGame() {
+        isPaused = true
+        gameScene?.isPaused = true
+        soundManager.pauseMusic()
+    }
+
+    func resumeGame() {
+        isPaused = false
+        gameScene?.isPaused = false
+        soundManager.resumeMusic()
+    }
+
+    func saveAndExit() {
+        PersistenceManager.shared.save(viewModel: self)
+        hasSavedGame = true
+        isPaused = false
+        gamePhase = .menu
+        gameScene = nil
+        soundManager.stopMusic()
+    }
+
+    func updateSettings(isRightHanded: Bool, volume: Float) {
+        self.isRightHanded = isRightHanded
+        PersistenceManager.shared.isRightHanded = isRightHanded
+        self.musicVolume = volume
+        PersistenceManager.shared.musicVolume = volume
+        soundManager.setMusicVolume(volume)
     }
 
     func generateMission() {
@@ -134,6 +195,7 @@ class GameViewModel {
         showDeliveryComplete = true
         canThrow = false
         policeAlert = false
+        policeChaseDistance = .infinity
 
         gameScene?.clearMission()
         gameScene?.clearPolice()
@@ -170,6 +232,7 @@ class GameViewModel {
         currentMission = nil
         canThrow = false
         policeAlert = false
+        policeChaseDistance = .infinity
         gameScene?.clearMission()
         gameScene?.clearPolice()
 
@@ -187,6 +250,7 @@ class GameViewModel {
         currentMission = nil
         canThrow = false
         policeAlert = false
+        policeChaseDistance = .infinity
         gameScene?.clearMission()
         gameScene?.clearPolice()
 

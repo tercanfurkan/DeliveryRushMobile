@@ -16,7 +16,10 @@ struct GamePlayView: View {
                     hudLeft
                     Spacer()
                     VStack(alignment: .trailing, spacing: 8) {
-                        hudRight
+                        HStack(spacing: 8) {
+                            hudRight
+                            pauseButton
+                        }
                         MinimapView(
                             playerPosition: viewModel.playerPosition,
                             pickupPosition: viewModel.pickupMarkerPosition,
@@ -48,9 +51,66 @@ struct GamePlayView: View {
             if viewModel.gamePhase == .gameOver {
                 gameOverOverlay
             }
+
+            if viewModel.isPaused {
+                pauseOverlay
+            }
         }
         .sensoryFeedback(.impact(weight: .heavy), trigger: viewModel.showCrashFlash)
         .sensoryFeedback(.success, trigger: viewModel.showDeliveryComplete)
+    }
+
+    private var pauseButton: some View {
+        Button { viewModel.pauseGame() } label: {
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(.white.opacity(0.8))
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(.black.opacity(0.6))
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    private var pauseOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.75).ignoresSafeArea()
+            VStack(spacing: 20) {
+                Text("PAUSED")
+                    .font(.system(size: 36, weight: .black))
+                    .foregroundStyle(.white)
+
+                Button { viewModel.resumeGame() } label: {
+                    Label("Resume", systemImage: "play.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 40).padding(.vertical, 14)
+                        .background(Color.yellow).clipShape(.rect(cornerRadius: 14))
+                }
+
+                Button { viewModel.saveAndExit() } label: {
+                    Label("Save & Exit", systemImage: "square.and.arrow.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 30).padding(.vertical, 12)
+                        .background(Color.white.opacity(0.15)).clipShape(.rect(cornerRadius: 12))
+                }
+
+                Button {
+                    viewModel.isPaused = false
+                    viewModel.gamePhase = .menu
+                    viewModel.gameScene = nil
+                    viewModel.soundManager.stopMusic()
+                } label: {
+                    Text("Give Up")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.red.opacity(0.8))
+                }
+            }
+            .padding(32)
+            .background(.ultraThinMaterial)
+            .clipShape(.rect(cornerRadius: 24))
+            .padding(.horizontal, 40)
+        }
     }
 
     private var hudLeft: some View {
@@ -138,14 +198,29 @@ struct GamePlayView: View {
 
     private var controlsBar: some View {
         HStack(alignment: .bottom) {
-            JoystickView(direction: Binding(
-                get: { viewModel.joystickDirection },
-                set: { viewModel.joystickDirection = $0 }
-            ))
-            .padding(.leading, 16)
+            if viewModel.isRightHanded {
+                actionButtons
+                Spacer()
+                joystickControl
+            } else {
+                joystickControl
+                Spacer()
+                actionButtons
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+    }
 
-            Spacer()
+    private var joystickControl: some View {
+        JoystickView(direction: Binding(
+            get: { viewModel.joystickDirection },
+            set: { viewModel.joystickDirection = $0 }
+        ))
+    }
 
+    private var actionButtons: some View {
+        Group {
             if viewModel.canThrow {
                 Button {
                     viewModel.throwRequested = true
@@ -164,12 +239,11 @@ struct GamePlayView: View {
                             .frame(width: 80, height: 80)
                     )
                 }
-                .padding(.trailing, 24)
                 .transition(.scale.combined(with: .opacity))
                 .animation(.spring(response: 0.3), value: viewModel.canThrow)
             }
         }
-        .padding(.bottom, 16)
+        .padding(.horizontal, 8)
     }
 
     private var deliveryCompleteOverlay: some View {

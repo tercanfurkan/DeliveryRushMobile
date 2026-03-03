@@ -2,12 +2,14 @@ import SwiftUI
 
 struct MainMenuView: View {
     let onStart: () -> Void
+    let viewModel: GameViewModel
     var highScore: Int = 0
 
     @State private var titleScale: CGFloat = 0.8
     @State private var titleOpacity: CGFloat = 0
     @State private var buttonOffset: CGFloat = 40
     @State private var scooterOffset: CGFloat = -200
+    @State private var showSettings = false
 
     var body: some View {
         ZStack {
@@ -70,29 +72,63 @@ struct MainMenuView: View {
 
                 Spacer()
 
-                Button(action: onStart) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "play.fill")
-                            .font(.title3)
-                        Text("START DELIVERY")
-                            .font(.system(size: 18, weight: .bold))
-                            .tracking(2)
+                VStack(spacing: 14) {
+                    if viewModel.hasSavedGame {
+                        Button(action: { viewModel.continueGame() }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "arrow.right.circle.fill").font(.title3)
+                                Text("CONTINUE")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .tracking(2)
+                            }
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 40)
+                            .padding(.vertical, 16)
+                            .background(
+                                LinearGradient(
+                                    colors: [.green, Color(red: 0.1, green: 0.7, blue: 0.3)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(.rect(cornerRadius: 16))
+                            .shadow(color: .green.opacity(0.4), radius: 16, x: 0, y: 4)
+                        }
                     }
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 1.0, green: 0.82, blue: 0.1),
-                                Color(red: 1.0, green: 0.65, blue: 0.05)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
+
+                    Button(action: onStart) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "play.fill")
+                                .font(.title3)
+                            Text("START DELIVERY")
+                                .font(.system(size: 18, weight: .bold))
+                                .tracking(2)
+                        }
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 16)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 1.0, green: 0.82, blue: 0.1),
+                                    Color(red: 1.0, green: 0.65, blue: 0.05)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .clipShape(.rect(cornerRadius: 16))
-                    .shadow(color: .orange.opacity(0.4), radius: 16, x: 0, y: 4)
+                        .clipShape(.rect(cornerRadius: 16))
+                        .shadow(color: .orange.opacity(0.4), radius: 16, x: 0, y: 4)
+                    }
+
+                    Button { showSettings = true } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "gearshape.fill")
+                            Text("Settings")
+                        }
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.6))
+                    }
                 }
                 .offset(y: buttonOffset)
                 .opacity(titleOpacity)
@@ -123,6 +159,57 @@ struct MainMenuView: View {
             }
             withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
                 scooterOffset = 0
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(viewModel: viewModel)
+        }
+    }
+}
+
+private struct SettingsView: View {
+    @Bindable var viewModel: GameViewModel
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Controls") {
+                    Toggle("Right-Handed Mode", isOn: Binding(
+                        get: { viewModel.isRightHanded },
+                        set: { viewModel.updateSettings(isRightHanded: $0, volume: viewModel.musicVolume) }
+                    ))
+                    Text("Moves the joystick to the right side of the screen.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                Section("Audio") {
+                    HStack {
+                        Image(systemName: "speaker.fill")
+                        Slider(value: Binding(
+                            get: { Double(viewModel.musicVolume) },
+                            set: { viewModel.updateSettings(isRightHanded: viewModel.isRightHanded, volume: Float($0)) }
+                        ), in: 0...1)
+                        Image(systemName: "speaker.wave.3.fill")
+                    }
+                    Text("Music Volume")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                Section("Data") {
+                    Button("Clear Saved Game", role: .destructive) {
+                        PersistenceManager.shared.clearSave()
+                        viewModel.hasSavedGame = false
+                        dismiss()
+                    }
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
             }
         }
     }

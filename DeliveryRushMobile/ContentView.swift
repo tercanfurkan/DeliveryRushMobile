@@ -9,6 +9,7 @@ struct ContentView: View {
             case .menu:
                 MainMenuView(
                     onStart: { viewModel.startGame() },
+                    viewModel: viewModel,
                     highScore: viewModel.highScore
                 )
             case .playing, .gameOver:
