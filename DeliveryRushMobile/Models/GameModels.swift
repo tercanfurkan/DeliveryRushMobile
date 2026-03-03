@@ -128,6 +128,8 @@ nonisolated enum SoundEffect: Sendable {
     case delivery
     case crash
     case policeSiren
+    case catMeow
+    case glassCrash
 }
 
 nonisolated enum Waveform: Sendable {
@@ -232,6 +234,7 @@ nonisolated enum ScooterTier: Int, CaseIterable, Sendable, Hashable {
 
 nonisolated enum GameTrack: CaseIterable, Sendable, Hashable {
     case original, jazz, electronic, lofi
+    case reggae, hiphop, latin, ambient
 
     var displayName: String {
         switch self {
@@ -239,6 +242,10 @@ nonisolated enum GameTrack: CaseIterable, Sendable, Hashable {
         case .jazz: "Smooth Jazz"
         case .electronic: "Neon Electronic"
         case .lofi: "Chill Lo-Fi"
+        case .reggae: "Reggae Vibes"
+        case .hiphop: "Hip-Hop City"
+        case .latin: "Latin Fire"
+        case .ambient: "Midnight Ambient"
         }
     }
 
@@ -248,6 +255,10 @@ nonisolated enum GameTrack: CaseIterable, Sendable, Hashable {
         case .jazz: 150
         case .electronic: 150
         case .lofi: 100
+        case .reggae: 175
+        case .hiphop: 175
+        case .latin: 200
+        case .ambient: 125
         }
     }
 
@@ -257,6 +268,10 @@ nonisolated enum GameTrack: CaseIterable, Sendable, Hashable {
         case .jazz: 90
         case .electronic: 140
         case .lofi: 75
+        case .reggae: 80.0
+        case .hiphop: 95.0
+        case .latin: 120.0
+        case .ambient: 60.0
         }
     }
 
@@ -266,6 +281,10 @@ nonisolated enum GameTrack: CaseIterable, Sendable, Hashable {
         case .jazz: "Smooth & mellow with soft chord swings"
         case .electronic: "High-energy neon synth lead"
         case .lofi: "Chill, muffled beats to relax and deliver"
+        case .reggae: "Laid-back island groove with offbeat skank guitar"
+        case .hiphop: "Hard 808 kicks and trap-style hi-hats"
+        case .latin: "Fiery clave rhythms and brass stabs"
+        case .ambient: "Slow atmospheric pads for late-night rides"
         }
     }
 }

@@ -1,6 +1,6 @@
 import AVFoundation
 
-class SoundManager {
+class SoundManager: NSObject, AVSpeechSynthesizerDelegate {
     private var engine: AVAudioEngine?
     private var musicPlayer: AVAudioPlayerNode?
     private var effectPlayer: AVAudioPlayerNode?
@@ -8,6 +8,7 @@ class SoundManager {
     private let sampleRate: Double = 44100
     private var isPlaying = false
     private var currentTrack: GameTrack = .original
+    private var activeSynthesizers: [AVSpeechSynthesizer] = []
 
     func setup() {
         let session = AVAudioSession.sharedInstance()
@@ -95,6 +96,14 @@ class SoundManager {
             return generateElectronicLoop()
         case .lofi:
             return generateLofiLoop()
+        case .reggae:
+            return generateReggaeLoop()
+        case .hiphop:
+            return generateHipHopLoop()
+        case .latin:
+            return generateLatinLoop()
+        case .ambient:
+            return generateAmbientLoop()
         }
     }
 
@@ -335,6 +344,10 @@ class SoundManager {
             return generateChord(freqs: [150], duration: 0.2, amp: 0.35, wave: .noise)
         case .policeSiren:
             return generateSiren(freqLow: 600, freqHigh: 900, duration: 0.6, amp: 0.15)
+        case .catMeow:
+            return generateCatMeow()
+        case .glassCrash:
+            return generateGlassCrash()
         }
     }
 
@@ -404,5 +417,374 @@ class SoundManager {
             buffer[i] += sample * amp * envelope
             phase += phaseInc
         }
+    }
+
+    // MARK: - New Music Tracks
+
+    // Reggae: 80 BPM, offbeat skank guitar, walking bass, gentle hi-hats
+    private func generateReggaeLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 80
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // Walking bass on beats 1 and 3 of each bar (0-indexed: beat 0, 2, 4, 6, ...)
+        let bassNotes: [(beat: Double, freq: Double)] = [
+            (0, 82.4), (2, 87.3),
+            (4, 73.4), (6, 82.4),
+            (8, 65.4), (10, 73.4),
+            (12, 77.8), (14, 87.3),
+        ]
+        for note in bassNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: beatDur * 0.7,
+                    freq: note.freq, amp: 0.20, wave: .sine)
+        }
+
+        // Offbeat reggae skank: square chop on the "and" of beats 2 and 4
+        // Per bar: offset 1.5 and 3.5 beats
+        let skanksPerBar: [Double] = [0.5, 1.5, 2.5, 3.5]
+        for bar in 0..<(totalBeats / 4) {
+            for offset in skanksPerBar {
+                // Only the "and" of 2 and 4 get the real chop (offbeat reggae feel)
+                if offset == 1.5 || offset == 3.5 {
+                    let beat = Double(bar * 4) + offset
+                    // Chord skank: two square waves close in frequency for a richer chop
+                    addTone(to: data, frameCount: frameCount,
+                            start: beat * beatDur, duration: 0.08,
+                            freq: 493.9, amp: 0.09, wave: .square)
+                    addTone(to: data, frameCount: frameCount,
+                            start: beat * beatDur, duration: 0.08,
+                            freq: 392.0, amp: 0.07, wave: .square)
+                } else {
+                    // Lighter ghost strum on "and" of 1 and 3
+                    let beat = Double(bar * 4) + offset
+                    addTone(to: data, frameCount: frameCount,
+                            start: beat * beatDur, duration: 0.06,
+                            freq: 440.0, amp: 0.04, wave: .square)
+                }
+            }
+        }
+
+        // Gentle hi-hat noise on every quarter beat
+        let quarterCount = totalBeats * 2
+        for q in 0..<quarterCount {
+            addTone(to: data, frameCount: frameCount,
+                    start: Double(q) * beatDur * 0.5, duration: 0.03,
+                    freq: 6000, amp: 0.015, wave: .noise)
+        }
+
+        // Slow, mellow melody: sine notes over 2-beat spans
+        let melodyNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 329.6, 2.0), (2, 293.7, 1.5),
+            (4, 261.6, 2.0), (6, 246.9, 1.5),
+            (8, 293.7, 2.0), (10, 329.6, 1.5),
+            (12, 261.6, 2.0), (14, 293.7, 1.8),
+        ]
+        for note in melodyNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.07, wave: .sine)
+        }
+
+        return buffer
+    }
+
+    // Hip-Hop: 95 BPM, 808 kick, snare, trap hi-hats, syncopated bass
+    private func generateHipHopLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 95
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // 808 kick: deep sine boom on beats 0 and 2.5 of each bar
+        for bar in 0..<(totalBeats / 4) {
+            let barBase = Double(bar * 4)
+            for kickOffset in [0.0, 2.5] {
+                addTone(to: data, frameCount: frameCount,
+                        start: (barBase + kickOffset) * beatDur, duration: 0.3,
+                        freq: 50, amp: 0.30, wave: .sine)
+            }
+        }
+
+        // Snare: noise burst on beats 1 and 3 of each bar
+        for bar in 0..<(totalBeats / 4) {
+            let barBase = Double(bar * 4)
+            for snareOffset in [1.0, 3.0] {
+                addTone(to: data, frameCount: frameCount,
+                        start: (barBase + snareOffset) * beatDur, duration: 0.08,
+                        freq: 800, amp: 0.20, wave: .noise)
+            }
+        }
+
+        // Fast trap hi-hats: every 0.25 beats
+        let hihatCount = totalBeats * 4
+        for h in 0..<hihatCount {
+            addTone(to: data, frameCount: frameCount,
+                    start: Double(h) * beatDur * 0.25, duration: 0.03,
+                    freq: 9000, amp: 0.02, wave: .noise)
+        }
+
+        // Syncopated bass line: square wave low frequencies
+        let bassNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 90.0, 0.5), (0.75, 110.0, 0.3),
+            (2, 98.0, 0.5), (2.75, 130.8, 0.3),
+            (4, 90.0, 0.5), (4.5, 110.0, 0.4),
+            (6, 98.0, 0.6), (7.0, 82.4, 0.3),
+            (8, 90.0, 0.5), (8.75, 110.0, 0.3),
+            (10, 98.0, 0.5), (10.5, 123.5, 0.3),
+            (12, 90.0, 0.5), (12.75, 110.0, 0.3),
+            (14, 98.0, 0.6), (15.0, 82.4, 0.5),
+        ]
+        for note in bassNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.18, wave: .square)
+        }
+
+        // Melodic trap phrase: square notes, upper register
+        let melodyNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 523.3, 0.25), (0.25, 587.3, 0.25), (0.5, 659.3, 0.5),
+            (2, 587.3, 0.5), (2.5, 523.3, 0.5),
+            (4, 440.0, 0.5), (4.5, 523.3, 0.25), (4.75, 587.3, 0.25),
+            (6, 523.3, 1.0),
+            (8, 659.3, 0.25), (8.25, 587.3, 0.25), (8.5, 523.3, 0.5),
+            (10, 587.3, 0.5), (10.5, 440.0, 0.5),
+            (12, 523.3, 0.5), (12.5, 587.3, 0.5),
+            (14, 659.3, 1.5),
+        ]
+        for note in melodyNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.09, wave: .square)
+        }
+
+        return buffer
+    }
+
+    // Latin: 120 BPM, clave pattern, brass stabs, bouncy bass
+    private func generateLatinLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 120
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // Clave pattern: sharp noise bursts (son clave 3-2: beats 0, 0.75, 1.5, 2.5, 3 per bar)
+        let claveOffsets: [Double] = [0, 0.75, 1.5, 2.5, 3.0]
+        for bar in 0..<(totalBeats / 4) {
+            let barBase = Double(bar * 4)
+            for offset in claveOffsets {
+                addTone(to: data, frameCount: frameCount,
+                        start: (barBase + offset) * beatDur, duration: 0.04,
+                        freq: 2000, amp: 0.12, wave: .noise)
+            }
+        }
+
+        // Bouncy bass: triangle wave, 4-beat pattern
+        let bassNotes: [(beat: Double, freq: Double)] = [
+            (0, 130.8), (1, 164.8), (2, 196.0), (3, 164.8),
+            (4, 146.8), (5, 174.6), (6, 196.0), (7, 174.6),
+            (8, 130.8), (9, 146.8), (10, 164.8), (11, 196.0),
+            (12, 174.6), (13, 196.0), (14, 164.8), (15, 146.8),
+        ]
+        for note in bassNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: beatDur * 0.75,
+                    freq: note.freq, amp: 0.17, wave: .triangle)
+        }
+
+        // Brass stabs: square wave chords on strong beats
+        let brassBeats: [Double] = [0, 4, 8, 12]
+        let brassFreqs: [Double] = [523.3, 659.3, 784.0]
+        for beat in brassBeats {
+            for freq in brassFreqs {
+                addTone(to: data, frameCount: frameCount,
+                        start: beat * beatDur, duration: 0.15,
+                        freq: freq, amp: 0.06, wave: .square)
+            }
+        }
+
+        // Melody: sine wave with fast runs (16th-note passages)
+        let melodyNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 523.3, 0.25), (0.25, 587.3, 0.25), (0.5, 659.3, 0.25), (0.75, 698.5, 0.25),
+            (1, 784.0, 0.5), (1.5, 698.5, 0.25), (1.75, 659.3, 0.25),
+            (2, 587.3, 0.5), (2.5, 523.3, 0.5),
+            (4, 659.3, 0.25), (4.25, 698.5, 0.25), (4.5, 784.0, 0.5),
+            (5, 880.0, 0.5), (5.5, 784.0, 0.25), (5.75, 698.5, 0.25),
+            (6, 659.3, 0.5), (6.5, 587.3, 0.5),
+            (8, 523.3, 0.25), (8.25, 587.3, 0.25), (8.5, 659.3, 0.25), (8.75, 587.3, 0.25),
+            (9, 523.3, 1.0),
+            (12, 784.0, 0.25), (12.25, 698.5, 0.25), (12.5, 659.3, 0.25), (12.75, 587.3, 0.25),
+            (13, 523.3, 0.5), (13.5, 440.0, 0.5),
+            (14, 523.3, 1.5),
+        ]
+        for note in melodyNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.08, wave: .sine)
+        }
+
+        return buffer
+    }
+
+    // Ambient: 60 BPM, slow pad chords, long melodic notes, atmospheric hiss
+    private func generateAmbientLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 60
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // Pad chords: 3-4 sine frequencies held for 4 beats each
+        let padChords: [(beat: Double, freqs: [Double])] = [
+            (0, [220.0, 261.6, 329.6, 392.0]),
+            (4, [196.0, 246.9, 293.7, 369.9]),
+            (8, [174.6, 220.0, 261.6, 329.6]),
+            (12, [207.7, 261.6, 311.1, 392.0]),
+        ]
+        for chord in padChords {
+            for freq in chord.freqs {
+                addTone(to: data, frameCount: frameCount,
+                        start: chord.beat * beatDur, duration: beatDur * 4.0,
+                        freq: freq, amp: 0.05, wave: .sine)
+            }
+        }
+
+        // Slow melody: long sine notes (2-3 beat duration)
+        let melodyNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 392.0, 3.0),
+            (3, 349.2, 2.0),
+            (5, 329.6, 2.5),
+            (8, 293.7, 3.0),
+            (11, 329.6, 2.0),
+            (13, 349.2, 3.0),
+        ]
+        for note in melodyNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.06, wave: .sine)
+        }
+
+        // Subtle atmospheric hiss: very low amplitude noise throughout
+        // Split into chunks to approximate a continuous low-amp noise layer
+        let chunkCount = 32
+        let chunkDur = totalDur / Double(chunkCount)
+        for c in 0..<chunkCount {
+            addTone(to: data, frameCount: frameCount,
+                    start: Double(c) * chunkDur, duration: chunkDur,
+                    freq: 3000, amp: 0.005, wave: .noise)
+        }
+
+        return buffer
+    }
+
+    // MARK: - New SFX
+
+    // Cat meow: FM sine glide 600→900→500 Hz with triangle harmonic
+    private func generateCatMeow() -> AVAudioPCMBuffer? {
+        let duration = 0.6
+        guard let (buffer, data, frameCount) = makeBuffer(duration: duration) else { return nil }
+
+        var phase: Double = 0
+        var harmPhase: Double = 0
+        let rampUpEnd = Int(0.1 * sampleRate)
+        let fadeStart = Int((duration - 0.15) * sampleRate)
+
+        for i in 0..<frameCount {
+            let t = Double(i) / sampleRate
+
+            // Frequency curve: glide up to 900 Hz in first 0.3s, then down to 500 Hz
+            let freq: Double
+            if t <= 0.3 {
+                // Ease from 600 to 900 Hz
+                let progress = t / 0.3
+                freq = 600.0 + (900.0 - 600.0) * progress
+            } else {
+                // Ease from 900 to 500 Hz
+                let progress = (t - 0.3) / 0.3
+                freq = 900.0 - (900.0 - 500.0) * progress
+            }
+
+            // Amplitude envelope
+            let env: Float
+            if i < rampUpEnd {
+                env = Float(i) / Float(rampUpEnd)
+            } else if i >= fadeStart {
+                env = Float(frameCount - i) / Float(frameCount - fadeStart)
+            } else {
+                env = 1.0
+            }
+
+            // Primary sine
+            let mainSample = Float(sin(phase * 2 * .pi))
+
+            // Triangle harmonic at half frequency, amp 0.04
+            let harmFreq = freq * 0.5
+            let hp = harmPhase.truncatingRemainder(dividingBy: 1.0)
+            let harmSample = Float(4.0 * abs(hp - 0.5) - 1.0)
+
+            data[i] += (mainSample * 0.25 + harmSample * 0.04) * env
+
+            phase += freq / sampleRate
+            harmPhase += harmFreq / sampleRate
+        }
+
+        return buffer
+    }
+
+    // Glass crash: initial noise impact + decaying high-freq tinkle
+    private func generateGlassCrash() -> AVAudioPCMBuffer? {
+        let duration = 0.5
+        guard let (buffer, data, frameCount) = makeBuffer(duration: duration) else { return nil }
+
+        let impactEnd = Int(0.05 * sampleRate)
+        let tinkleEnd = frameCount
+
+        // Part 1: initial noise impact
+        for i in 0..<impactEnd {
+            let t = Float(i) / Float(impactEnd)
+            let env = 1.0 - t  // decay quickly
+            data[i] += Float.random(in: -1...1) * 0.4 * env
+        }
+
+        // Part 2: decaying tinkle of high-freq noise bursts
+        let burstInterval = Int(0.018 * sampleRate)  // ~18ms between bursts
+        let burstLength = Int(0.008 * sampleRate)    // ~8ms each burst
+        var burstStart = impactEnd
+        while burstStart < tinkleEnd {
+            let tinkleProgress = Float(burstStart - impactEnd) / Float(tinkleEnd - impactEnd)
+            let decayAmp = 0.3 * (1.0 - tinkleProgress)
+            let end = min(burstStart + burstLength, tinkleEnd)
+            for i in burstStart..<end {
+                data[i] += Float.random(in: -1...1) * decayAmp
+            }
+            burstStart += burstInterval + Int.random(in: 0...Int(0.005 * sampleRate))
+        }
+
+        return buffer
+    }
+
+    // MARK: - AVSpeechSynthesizer "Hey!"
+
+    func speakHey() {
+        let utterance = AVSpeechUtterance(string: "Hey! What's going on!")
+        utterance.rate = 0.55
+        utterance.pitchMultiplier = 1.2
+        utterance.volume = 0.9
+        let synthesizer = AVSpeechSynthesizer()
+        synthesizer.delegate = self
+        synthesizer.speak(utterance)
+        activeSynthesizers.append(synthesizer)
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        activeSynthesizers.removeAll { $0 === synthesizer }
     }
 }
