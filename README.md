@@ -44,22 +44,58 @@ open DeliveryRushMobile.xcodeproj
 
 Select your target device in the toolbar and press **⌘R** to build and run.
 
-## Building from the Command Line
+## Build, Test & Static Analysis
+
+A `Makefile` is included for all common tasks:
 
 ```bash
-# Simulator
+make build     # Build for simulator (iPhone 17 Pro)
+make test      # Run unit tests
+make lint      # Run SwiftLint (no-op if not installed)
+make lint-fix  # Auto-fix SwiftLint violations
+make open      # Open the project in Xcode
+make clean     # Clean derived data
+make help      # List all targets
+```
+
+Install SwiftLint (optional but recommended):
+```bash
+brew install swiftlint
+```
+
+### Building from the command line
+
+```bash
+# Simulator — build only
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+
+# Simulator — build and launch
+xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build \
+  | xcpretty
+APP=$(find ~/Library/Developer/Xcode/DerivedData -name "DeliveryRushMobile.app" | head -1)
+xcrun simctl install booted "$APP"
+xcrun simctl launch booted com.nollayks.deliveryrush
 
 # Physical device — find your UDID with: xcrun devicectl list devices
 xcodebuild -project DeliveryRushMobile.xcodeproj -scheme DeliveryRushMobile \
   -destination 'platform=iOS,id=<DEVICE_UDID>' -configuration Debug build
 
-xcrun devicectl device install app --device <DEVICE_UDID> \
-  <path-to-DeliveryRushMobile.app>
-xcrun devicectl device process launch --device <DEVICE_UDID> \
-  com.nollayks.deliveryrush
+APP=$(find ~/Library/Developer/Xcode/DerivedData -name "DeliveryRushMobile.app" | head -1)
+xcrun devicectl device install app --device <DEVICE_UDID> "$APP"
+xcrun devicectl device process launch --device <DEVICE_UDID> com.nollayks.deliveryrush
 ```
+
+### Running tests
+
+```bash
+xcodebuild test -project DeliveryRushMobile.xcodeproj \
+  -scheme DeliveryRushMobile \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+Or simply: `make test`
 
 ## Architecture
 

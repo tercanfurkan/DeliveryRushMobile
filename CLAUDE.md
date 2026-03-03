@@ -62,6 +62,34 @@ git worktree add .claude/worktrees/<name> -b <branch>
 git merge <branch> --no-ff
 ```
 
+### QA gate — REQUIRED before declaring work done
+
+The **orchestrator agent** (parent) MUST run all three checks after merging all worktrees. No task is complete until these pass cleanly:
+
+```bash
+# 1. Lint (warnings ok, errors must be zero)
+make lint
+
+# 2. Build — must succeed with zero errors
+xcodebuild -project DeliveryRushMobile.xcodeproj \
+  -scheme DeliveryRushMobile \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  build 2>&1 | grep -E "error:|BUILD SUCCEEDED|BUILD FAILED"
+
+# 3. Tests — must pass
+xcodebuild test -project DeliveryRushMobile.xcodeproj \
+  -scheme DeliveryRushMobile \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' 2>&1 \
+  | grep -E "Test Suite|passed|failed"
+```
+
+Or with the Makefile shortcuts:
+```bash
+make lint && make build && make test
+```
+
+If any check fails: diagnose and fix before considering the task done. Do not skip or paper over failures with `--no-verify` or similar.
+
 ### Each agent's routine (atomic work)
 1. Read relevant files before modifying anything
 2. Implement the feature/fix
