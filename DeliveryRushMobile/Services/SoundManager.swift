@@ -7,6 +7,7 @@ class SoundManager {
     private var format: AVAudioFormat?
     private let sampleRate: Double = 44100
     private var isPlaying = false
+    private var currentTrack: GameTrack = .original
 
     func setup() {
         let session = AVAudioSession.sharedInstance()
@@ -38,7 +39,7 @@ class SoundManager {
             try engine?.start()
             musicPlayer?.play()
             effectPlayer?.play()
-            if let buffer = generateMusicLoop() {
+            if let buffer = generateMusicLoop(track: currentTrack) {
                 musicPlayer?.scheduleBuffer(buffer, at: nil, options: .loops)
             }
             isPlaying = true
@@ -50,6 +51,17 @@ class SoundManager {
         effectPlayer?.stop()
         engine?.stop()
         isPlaying = false
+    }
+
+    // B6 - Switch music track
+    func switchTrack(_ track: GameTrack) {
+        currentTrack = track
+        guard isPlaying else { return }
+        musicPlayer?.stop()
+        if let buffer = generateMusicLoop(track: track) {
+            musicPlayer?.scheduleBuffer(buffer, at: nil, options: .loops)
+            musicPlayer?.play()
+        }
     }
 
     func playEffect(_ effect: SoundEffect) {
@@ -68,7 +80,20 @@ class SoundManager {
         return (buffer, data, n)
     }
 
-    private func generateMusicLoop() -> AVAudioPCMBuffer? {
+    private func generateMusicLoop(track: GameTrack) -> AVAudioPCMBuffer? {
+        switch track {
+        case .original:
+            return generateOriginalLoop()
+        case .jazz:
+            return generateJazzLoop()
+        case .electronic:
+            return generateElectronicLoop()
+        case .lofi:
+            return generateLofiLoop()
+        }
+    }
+
+    private func generateOriginalLoop() -> AVAudioPCMBuffer? {
         let bpm: Double = 135
         let bars = 4
         let beatsPerBar = 4
@@ -125,6 +150,171 @@ class SoundManager {
             addTone(to: data, frameCount: frameCount,
                     start: (Double(beat) + 0.5) * beatDur, duration: 0.03,
                     freq: 10000, amp: 0.025, wave: .noise)
+        }
+
+        return buffer
+    }
+
+    // B6 - Jazz: soft sine chords at 90 BPM
+    private func generateJazzLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 90
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // Chord progressions (major 7th style)
+        let chords: [(beat: Double, freqs: [Double])] = [
+            (0, [261.6, 329.6, 392.0, 493.9]),
+            (4, [220.0, 277.2, 329.6, 415.3]),
+            (8, [196.0, 246.9, 293.7, 369.9]),
+            (12, [233.1, 293.7, 349.2, 440.0]),
+        ]
+        for chord in chords {
+            for freq in chord.freqs {
+                addTone(to: data, frameCount: frameCount,
+                        start: chord.beat * beatDur, duration: beatDur * 3.5,
+                        freq: freq, amp: 0.06, wave: .sine)
+            }
+        }
+
+        // Soft walking bass
+        let bassNotes: [(beat: Double, freq: Double)] = [
+            (0, 65.4), (1, 73.4), (2, 82.4), (3, 87.3),
+            (4, 55.0), (5, 65.4), (6, 73.4), (7, 82.4),
+            (8, 49.0), (9, 55.0), (10, 61.7), (11, 65.4),
+            (12, 58.3), (13, 65.4), (14, 73.4), (15, 82.4),
+        ]
+        for note in bassNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: beatDur * 0.8,
+                    freq: note.freq, amp: 0.15, wave: .sine)
+        }
+
+        // Hi-hat on every beat
+        for beat in 0..<totalBeats {
+            addTone(to: data, frameCount: frameCount,
+                    start: Double(beat) * beatDur, duration: 0.04,
+                    freq: 7000, amp: 0.02, wave: .noise)
+        }
+
+        return buffer
+    }
+
+    // B6 - Electronic: square lead at 140 BPM
+    private func generateElectronicLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 140
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // Driving square bass
+        let bassNotes: [(beat: Double, freq: Double)] = [
+            (0, 110.0), (1, 110.0), (2, 130.8), (3, 146.8),
+            (4, 110.0), (5, 164.8), (6, 130.8), (7, 110.0),
+            (8, 98.0),  (9, 98.0),  (10, 110.0), (11, 130.8),
+            (12, 110.0), (13, 130.8), (14, 164.8), (15, 110.0),
+        ]
+        for note in bassNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: beatDur * 0.5,
+                    freq: note.freq, amp: 0.20, wave: .square)
+        }
+
+        // Neon synth lead
+        let leadNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 523.3, 0.5), (1, 659.3, 0.5), (2, 784.0, 0.25), (2.25, 880.0, 0.75),
+            (4, 659.3, 1.0), (5, 523.3, 0.5), (6, 440.0, 1.0),
+            (8, 784.0, 0.5), (8.5, 698.5, 0.5), (9, 659.3, 1.0),
+            (12, 523.3, 0.5), (12.5, 587.3, 0.5), (13, 659.3, 0.5), (14, 784.0, 1.5),
+        ]
+        for note in leadNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.10, wave: .square)
+        }
+
+        // Hard kick on 1 and 3
+        for beat in 0..<totalBeats {
+            if beat % 4 == 0 || beat % 4 == 2 {
+                addTone(to: data, frameCount: frameCount,
+                        start: Double(beat) * beatDur, duration: 0.1,
+                        freq: 55, amp: 0.30, wave: .sine)
+            }
+            // Clap on 2 and 4
+            if beat % 4 == 1 || beat % 4 == 3 {
+                addTone(to: data, frameCount: frameCount,
+                        start: Double(beat) * beatDur, duration: 0.07,
+                        freq: 500, amp: 0.14, wave: .noise)
+            }
+            // 16th hi-hats
+            addTone(to: data, frameCount: frameCount,
+                    start: Double(beat) * beatDur, duration: 0.03,
+                    freq: 10000, amp: 0.03, wave: .noise)
+            addTone(to: data, frameCount: frameCount,
+                    start: (Double(beat) + 0.5) * beatDur, duration: 0.02,
+                    freq: 9000, amp: 0.02, wave: .noise)
+        }
+
+        return buffer
+    }
+
+    // B6 - Lo-fi: muffled noise, slow beats at 75 BPM
+    private func generateLofiLoop() -> AVAudioPCMBuffer? {
+        let bpm: Double = 75
+        let totalBeats = 16
+        let beatDur = 60.0 / bpm
+        let totalDur = Double(totalBeats) * beatDur
+
+        guard let (buffer, data, frameCount) = makeBuffer(duration: totalDur) else { return nil }
+
+        // Mellow bass chords
+        let chords: [(beat: Double, freqs: [Double])] = [
+            (0, [130.8, 164.8, 196.0]),
+            (4, [110.0, 138.6, 164.8]),
+            (8, [98.0, 123.5, 146.8]),
+            (12, [116.5, 146.8, 174.6]),
+        ]
+        for chord in chords {
+            for freq in chord.freqs {
+                addTone(to: data, frameCount: frameCount,
+                        start: chord.beat * beatDur, duration: beatDur * 3.8,
+                        freq: freq, amp: 0.10, wave: .triangle)
+            }
+        }
+
+        // Soft melody
+        let melodyNotes: [(beat: Double, freq: Double, dur: Double)] = [
+            (0, 392.0, 1.5), (2, 349.2, 1.0), (3, 329.6, 0.5),
+            (4, 293.7, 2.0), (6, 261.6, 1.5),
+            (8, 329.6, 1.5), (10, 293.7, 1.0), (11, 261.6, 0.5),
+            (12, 220.0, 2.0), (14, 246.9, 1.5),
+        ]
+        for note in melodyNotes {
+            addTone(to: data, frameCount: frameCount,
+                    start: note.beat * beatDur, duration: note.dur * beatDur,
+                    freq: note.freq, amp: 0.07, wave: .sine)
+        }
+
+        // Muffled kick and snare
+        for beat in 0..<totalBeats {
+            if beat % 4 == 0 {
+                addTone(to: data, frameCount: frameCount,
+                        start: Double(beat) * beatDur, duration: 0.15,
+                        freq: 60, amp: 0.18, wave: .sine)
+            }
+            if beat % 4 == 2 {
+                addTone(to: data, frameCount: frameCount,
+                        start: Double(beat) * beatDur, duration: 0.12,
+                        freq: 300, amp: 0.08, wave: .noise)
+            }
+            // Quiet vinyl crackle
+            addTone(to: data, frameCount: frameCount,
+                    start: Double(beat) * beatDur, duration: beatDur,
+                    freq: 4000, amp: 0.008, wave: .noise)
         }
 
         return buffer

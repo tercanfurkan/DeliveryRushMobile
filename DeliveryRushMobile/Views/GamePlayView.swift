@@ -17,6 +17,7 @@ struct GamePlayView: View {
                     Spacer()
                     VStack(alignment: .trailing, spacing: 8) {
                         hudRight
+                        cityBadge
                         MinimapView(
                             playerPosition: viewModel.playerPosition,
                             pickupPosition: viewModel.pickupMarkerPosition,
@@ -29,6 +30,10 @@ struct GamePlayView: View {
                 .padding(.top, 8)
 
                 Spacer()
+
+                // D1 - Police chase warning banner
+                policeBanner
+
                 missionBanner
                 controlsBar
             }
@@ -47,6 +52,16 @@ struct GamePlayView: View {
 
             if viewModel.gamePhase == .gameOver {
                 gameOverOverlay
+            }
+
+            // B4 - Shop overlay
+            if viewModel.isShopOpen, let shop = viewModel.nearbyShop {
+                ShopView(viewModel: viewModel, shop: shop)
+            }
+
+            // C4 - Level up overlay
+            if viewModel.pendingLevelTransition {
+                LevelUpView(viewModel: viewModel)
             }
         }
         .sensoryFeedback(.impact(weight: .heavy), trigger: viewModel.showCrashFlash)
@@ -99,6 +114,21 @@ struct GamePlayView: View {
         .clipShape(.rect(cornerRadius: 12))
     }
 
+    // C5 - City name HUD badge
+    private var cityBadge: some View {
+        HStack(spacing: 4) {
+            Text(viewModel.currentTheme.skylineEmoji)
+                .font(.system(size: 14))
+            Text(viewModel.currentTheme.name)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.black.opacity(0.6))
+        .clipShape(.rect(cornerRadius: 10))
+    }
+
     private var timerColor: Color {
         viewModel.missionTimeRemaining < 10 ? .red : .white
     }
@@ -106,6 +136,51 @@ struct GamePlayView: View {
     private var timerText: String {
         let seconds = Int(viewModel.missionTimeRemaining)
         return "\(seconds)s"
+    }
+
+    // D1 - Police chase warning banner
+    @ViewBuilder
+    private var policeBanner: some View {
+        let dist = viewModel.policeChaseDistance
+        if dist < 80 {
+            HStack(spacing: 8) {
+                Image(systemName: "light.beacon.max.fill")
+                    .foregroundStyle(.red)
+                    .symbolEffect(.pulse, options: .speed(3))
+                Text("PULL OVER NOW!")
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundStyle(.red)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.red.opacity(0.2))
+            .clipShape(.rect(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.red, lineWidth: 1.5)
+            )
+            .padding(.bottom, 4)
+            .transition(.scale.combined(with: .opacity))
+        } else if dist < 250 {
+            HStack(spacing: 8) {
+                Image(systemName: "light.beacon.max.fill")
+                    .foregroundStyle(.yellow)
+                    .symbolEffect(.pulse)
+                Text("Police nearby — lose them!")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.yellow)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.yellow.opacity(0.15))
+            .clipShape(.rect(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.yellow, lineWidth: 1)
+            )
+            .padding(.bottom, 4)
+            .transition(.scale.combined(with: .opacity))
+        }
     }
 
     private var missionBanner: some View {
@@ -146,35 +221,60 @@ struct GamePlayView: View {
 
             Spacer()
 
-            if viewModel.canThrow {
-                Button {
-                    viewModel.throwRequested = true
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "arrow.up.forward.circle.fill")
-                            .font(.system(size: 52))
-                        Text("THROW")
-                            .font(.system(size: 11, weight: .bold))
+            VStack(spacing: 8) {
+                // B3 - ENTER SHOP button
+                if let shop = viewModel.nearbyShop, !viewModel.isShopOpen {
+                    Button {
+                        viewModel.isShopOpen = true
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(shop.type.emoji)
+                                .font(.system(size: 28))
+                            Text("ENTER SHOP")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(Color(uiColor: shop.type.signColor).opacity(0.7))
+                                .frame(width: 80, height: 80)
+                        )
                     }
-                    .foregroundStyle(.white)
-                    .padding(12)
-                    .background(
-                        Circle()
-                            .fill(.orange.opacity(0.7))
-                            .frame(width: 80, height: 80)
-                    )
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.spring(response: 0.3), value: viewModel.nearbyShop != nil)
                 }
-                .padding(.trailing, 24)
-                .transition(.scale.combined(with: .opacity))
-                .animation(.spring(response: 0.3), value: viewModel.canThrow)
+
+                if viewModel.canThrow {
+                    Button {
+                        viewModel.throwRequested = true
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: "arrow.up.forward.circle.fill")
+                                .font(.system(size: 52))
+                            Text("THROW")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(.orange.opacity(0.7))
+                                .frame(width: 80, height: 80)
+                        )
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.spring(response: 0.3), value: viewModel.canThrow)
+                }
             }
+            .padding(.trailing, 24)
         }
         .padding(.bottom, 16)
     }
 
     private var deliveryCompleteOverlay: some View {
         VStack(spacing: 12) {
-            Text("✅ DELIVERED!")
+            Text("DELIVERED!")
                 .font(.system(size: 28, weight: .black))
                 .foregroundStyle(.green)
 
@@ -260,3 +360,4 @@ struct GamePlayView: View {
         .transition(.opacity)
     }
 }
+

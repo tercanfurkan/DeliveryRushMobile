@@ -20,8 +20,38 @@ class GameViewModel {
     var policeAlert: Bool = false
     var playerPosition: CGPoint = .zero
 
+    // D1 - Police Chase Distance
+    var policeChaseDistance: CGFloat = .infinity
+
+    // B3 - Shop Proximity
+    var nearbyShop: Shop? = nil
+    var isShopOpen: Bool = false
+
+    // C1 - Level Progression
+    var currentLevel: Int = 1
+    var deliveriesThisLevel: Int = 0
+    var pendingLevelTransition: Bool = false
+
+    // C5 - Current Theme
+    var currentTheme: CityTheme = .newYork
+
+    // B5 - Scooter
+    var equippedScooter: ScooterTier = .basic
+    var ownedScooters: Set<ScooterTier> = [.basic]
+
+    // B6 - Music
+    var activeTrack: GameTrack = .original
+    var ownedTracks: Set<GameTrack> = [.original]
+
+    // B7 - Paint
+    var scooterColor: ScooterColor = .yellow
+    var ownedColors: Set<ScooterColor> = [.yellow]
+
     var gameScene: GameScene?
     let soundManager = SoundManager()
+
+    // B2 - Shops
+    var shops: [Shop] = []
 
     var pickupMarkerPosition: CGPoint? {
         guard let mission = currentMission, !mission.pickedUp else { return nil }
@@ -58,23 +88,98 @@ class GameViewModel {
         soundManager.setup()
     }
 
+    // MARK: - Shop Generation (B2)
+
+    func generateShops() {
+        let usedGrids = Set(cityLocations.map { "\($0.gridX)_\($0.gridY)" })
+        let shopTypes = ShopType.allCases.shuffled()
+        var result: [Shop] = []
+
+        // Quadrant definitions: (xRange, yRange)
+        let quadrants: [(ClosedRange<Int>, ClosedRange<Int>)] = [
+            (0...4, 5...9), // top-left
+            (5...9, 5...9), // top-right
+            (0...4, 0...4), // bottom-left
+            (5...9, 0...4), // bottom-right
+        ]
+
+        for (idx, quadrant) in quadrants.enumerated() {
+            let shopType = shopTypes[idx]
+            var placed = false
+            var attempts = 0
+            while !placed && attempts < 50 {
+                let gx = Int.random(in: quadrant.0)
+                let gy = Int.random(in: quadrant.1)
+                let key = "\(gx)_\(gy)"
+                if !usedGrids.contains(key) && !result.contains(where: { $0.gridX == gx && $0.gridY == gy }) {
+                    result.append(Shop(type: shopType, gridX: gx, gridY: gy))
+                    placed = true
+                }
+                attempts += 1
+            }
+        }
+
+        shops = result
+    }
+
     func startGame() {
         money = 100
         totalDeliveries = 0
+        deliveriesThisLevel = 0
+        currentLevel = 1
         gamePhase = .playing
         currentMission = nil
         canThrow = false
         policeAlert = false
         playerPosition = .zero
+        policeChaseDistance = .infinity
+        nearbyShop = nil
+        isShopOpen = false
+        pendingLevelTransition = false
+        currentTheme = CityTheme.theme(for: currentLevel)
+
+        generateShops()
 
         let scene = GameScene()
         scene.size = CGSize(width: 390, height: 844)
         scene.scaleMode = .resizeFill
         scene.viewModel = self
+        scene.cityTheme = currentTheme
         gameScene = scene
 
         soundManager.startMusic()
         generateMission()
+    }
+
+    // MARK: - Level Progression (C1)
+
+    func advanceLevel() {
+        currentLevel += 1
+        deliveriesThisLevel = 0
+        pendingLevelTransition = true
+        currentTheme = CityTheme.theme(for: currentLevel)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self = self else { return }
+            self.rebuildScene()
+            self.pendingLevelTransition = false
+        }
+    }
+
+    private func rebuildScene() {
+        let scene = GameScene()
+        scene.size = CGSize(width: 390, height: 844)
+        scene.scaleMode = .resizeFill
+        scene.viewModel = self
+        scene.cityTheme = currentTheme
+        gameScene = scene
+        soundManager.switchTrack(currentTheme.musicTrack)
+        generateMission()
+    }
+
+    func completeLevelTransition() {
+        pendingLevelTransition = false
+        rebuildScene()
     }
 
     func generateMission() {
@@ -130,10 +235,12 @@ class GameViewModel {
         let earned = mission.type.reward + timeBonus
         money += earned
         totalDeliveries += 1
+        deliveriesThisLevel += 1
         lastEarned = earned
         showDeliveryComplete = true
         canThrow = false
         policeAlert = false
+        policeChaseDistance = .infinity
 
         gameScene?.clearMission()
         gameScene?.clearPolice()
@@ -142,10 +249,19 @@ class GameViewModel {
         missionIconName = nil
         missionMessage = "+$\(earned)! Nice delivery!"
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            guard self?.gamePhase == .playing else { return }
-            self?.showDeliveryComplete = false
-            self?.generateMission()
+        // C1 - check for level advance
+        if deliveriesThisLevel >= 10 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                guard self?.gamePhase == .playing else { return }
+                self?.showDeliveryComplete = false
+                self?.advanceLevel()
+            }
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                guard self?.gamePhase == .playing else { return }
+                self?.showDeliveryComplete = false
+                self?.generateMission()
+            }
         }
     }
 
@@ -170,6 +286,7 @@ class GameViewModel {
         currentMission = nil
         canThrow = false
         policeAlert = false
+        policeChaseDistance = .infinity
         gameScene?.clearMission()
         gameScene?.clearPolice()
 
@@ -181,14 +298,16 @@ class GameViewModel {
 
     func caughtByPolice() {
         missionIconName = nil
-        missionMessage = "🚔 Busted! Package confiscated!"
+        missionMessage = "🚔 Busted! Taken to the police station."
         soundManager.playEffect(.policeSiren)
         applyCrashPenalty(50)
         currentMission = nil
         canThrow = false
         policeAlert = false
+        policeChaseDistance = .infinity
         gameScene?.clearMission()
         gameScene?.clearPolice()
+        gameScene?.respawnAtPoliceStation()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
             guard self?.gamePhase == .playing else { return }
@@ -201,5 +320,54 @@ class GameViewModel {
         highScore = max(highScore, totalDeliveries)
         gameScene?.isPaused = true
         soundManager.stopMusic()
+    }
+
+    // MARK: - Shop Purchase (B4-B8)
+
+    func purchaseItem(shopType: ShopType, itemIndex: Int) {
+        switch shopType {
+        case .scooterStore:
+            let tier = ScooterTier.allCases[itemIndex]
+            guard !ownedScooters.contains(tier), money >= tier.price else { return }
+            money -= tier.price
+            ownedScooters.insert(tier)
+            equippedScooter = tier
+
+        case .musicStore:
+            let track = GameTrack.allCases[itemIndex]
+            guard !ownedTracks.contains(track), money >= track.price else { return }
+            money -= track.price
+            ownedTracks.insert(track)
+            activeTrack = track
+            soundManager.switchTrack(track)
+
+        case .paintStore:
+            let color = ScooterColor.allCases[itemIndex]
+            guard !ownedColors.contains(color), money >= color.price else { return }
+            money -= color.price
+            ownedColors.insert(color)
+            scooterColor = color
+
+        case .portalStore:
+            guard deliveriesThisLevel >= 8, money >= 100 else { return }
+            money -= 100
+            advanceLevel()
+        }
+    }
+
+    func equipScooter(_ tier: ScooterTier) {
+        guard ownedScooters.contains(tier) else { return }
+        equippedScooter = tier
+    }
+
+    func equipTrack(_ track: GameTrack) {
+        guard ownedTracks.contains(track) else { return }
+        activeTrack = track
+        soundManager.switchTrack(track)
+    }
+
+    func equipColor(_ color: ScooterColor) {
+        guard ownedColors.contains(color) else { return }
+        scooterColor = color
     }
 }

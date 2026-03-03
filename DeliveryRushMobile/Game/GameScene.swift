@@ -3,6 +3,9 @@ import SpriteKit
 class GameScene: SKScene, SKPhysicsContactDelegate {
     weak var viewModel: GameViewModel?
 
+    // C3 - City theme
+    var cityTheme: CityTheme = .newYork
+
     private let worldNode = SKNode()
     private let playerNode = SKNode()
     private let trafficNode = SKNode()
@@ -34,27 +37,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var buildingTextureCache: [Int: SKTexture] = [:]
     private var npcVelocities: [ObjectIdentifier: CGVector] = [:]
 
-    private let maxSpeed: CGFloat = 280
-    private let thrustForce: CGFloat = 900
-    private let turnSpeed: CGFloat = 5.5
+    // Player physics (updated by scooter tier in setupPlayer)
+    private var maxSpeed: CGFloat = 280
+    private var thrustForce: CGFloat = 900
+    private var turnSpeed: CGFloat = 5.5
 
-    private let buildingColors: [UIColor] = [
-        UIColor(red: 0.55, green: 0.42, blue: 0.35, alpha: 1),
-        UIColor(red: 0.60, green: 0.55, blue: 0.50, alpha: 1),
-        UIColor(red: 0.48, green: 0.50, blue: 0.56, alpha: 1),
-        UIColor(red: 0.62, green: 0.55, blue: 0.45, alpha: 1),
-        UIColor(red: 0.52, green: 0.45, blue: 0.42, alpha: 1),
-        UIColor(red: 0.58, green: 0.52, blue: 0.46, alpha: 1),
-        UIColor(red: 0.50, green: 0.44, blue: 0.52, alpha: 1),
-        UIColor(red: 0.65, green: 0.58, blue: 0.48, alpha: 1),
-    ]
-
-    private let sidewalkColor = UIColor(red: 0.38, green: 0.37, blue: 0.36, alpha: 1)
-    private let roadColor = UIColor(red: 0.20, green: 0.20, blue: 0.22, alpha: 1)
-    private let curbColor = UIColor(red: 0.32, green: 0.31, blue: 0.30, alpha: 1)
+    // E1 - Random window offset for throw
+    private var deliveryWindowOffset: CGFloat = 25
 
     override func didMove(to view: SKView) {
-        backgroundColor = UIColor(red: 0.15, green: 0.15, blue: 0.17, alpha: 1)
+        backgroundColor = cityTheme.backgroundColor
         physicsWorld.contactDelegate = self
         physicsWorld.gravity = .zero
 
@@ -71,6 +63,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         buildCity()
         setupPlayer()
         setupWorldBoundary()
+        drawShops()
     }
 
     // MARK: - City Building
@@ -90,11 +83,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func drawRoads(ws: CGFloat, rw: CGFloat) {
+        let color = cityTheme.roadColor
         for row in 0...CityConfig.gridSize {
             let y = CGFloat(row) * CityConfig.cellSize
             let road = SKShapeNode(rectOf: CGSize(width: ws + rw, height: rw))
             road.position = CGPoint(x: ws / 2, y: y + rw / 2)
-            road.fillColor = roadColor
+            road.fillColor = color
             road.strokeColor = .clear
             road.zPosition = 0
             worldNode.addChild(road)
@@ -104,7 +98,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let x = CGFloat(col) * CityConfig.cellSize
             let road = SKShapeNode(rectOf: CGSize(width: rw, height: ws + rw))
             road.position = CGPoint(x: x + rw / 2, y: ws / 2)
-            road.fillColor = roadColor
+            road.fillColor = color
             road.strokeColor = .clear
             road.zPosition = 0
             worldNode.addChild(road)
@@ -112,19 +106,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func drawSidewalks(ws: CGFloat, rw: CGFloat, sw: CGFloat) {
+        let color = cityTheme.sidewalkColor
+        let curbColor = color.darker(by: 0.08)
+
         for row in 0...CityConfig.gridSize {
             let y = CGFloat(row) * CityConfig.cellSize
 
             let bottom = SKShapeNode(rectOf: CGSize(width: ws + rw, height: sw))
             bottom.position = CGPoint(x: ws / 2, y: y + sw / 2)
-            bottom.fillColor = sidewalkColor
+            bottom.fillColor = color
             bottom.strokeColor = .clear
             bottom.zPosition = 1
             worldNode.addChild(bottom)
 
             let top = SKShapeNode(rectOf: CGSize(width: ws + rw, height: sw))
             top.position = CGPoint(x: ws / 2, y: y + rw - sw / 2)
-            top.fillColor = sidewalkColor
+            top.fillColor = color
             top.strokeColor = .clear
             top.zPosition = 1
             worldNode.addChild(top)
@@ -149,14 +146,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
             let left = SKShapeNode(rectOf: CGSize(width: sw, height: ws + rw))
             left.position = CGPoint(x: x + sw / 2, y: ws / 2)
-            left.fillColor = sidewalkColor
+            left.fillColor = color
             left.strokeColor = .clear
             left.zPosition = 1
             worldNode.addChild(left)
 
             let right = SKShapeNode(rectOf: CGSize(width: sw, height: ws + rw))
             right.position = CGPoint(x: x + rw - sw / 2, y: ws / 2)
-            right.fillColor = sidewalkColor
+            right.fillColor = color
             right.strokeColor = .clear
             right.zPosition = 1
             worldNode.addChild(right)
@@ -339,7 +336,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private func drawBuilding(at center: CGPoint, size: CGFloat, row: Int, col: Int) {
         let inset = CGFloat(abs(row * 3 + col * 7) % 9)
         let actualSize = size - inset
-        let color = buildingColors[abs(row * 3 + col * 7) % buildingColors.count]
+        let colors = cityTheme.buildingColors
+        let color = colors[abs(row * 3 + col * 7) % colors.count]
 
         let sprite = createBuildingSprite(size: actualSize, color: color, seed: row * 10 + col)
         sprite.position = center
@@ -457,17 +455,95 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    // MARK: - Shop Visuals (B2)
+
+    private func drawShops() {
+        guard let vm = viewModel else { return }
+        for shop in vm.shops {
+            drawShop(shop)
+        }
+    }
+
+    private func drawShop(_ shop: Shop) {
+        let pos = shop.worldPosition
+        let bSize = CityConfig.blockSize - 4
+
+        // Special shop building overlay
+        let shopBg = SKShapeNode(rectOf: CGSize(width: bSize * 0.8, height: bSize * 0.8), cornerRadius: 6)
+        shopBg.position = pos
+        shopBg.fillColor = shop.type.signColor.withAlphaComponent(0.25)
+        shopBg.strokeColor = shop.type.signColor
+        shopBg.lineWidth = 2
+        shopBg.zPosition = 11
+        worldNode.addChild(shopBg)
+
+        // Sign label
+        let sign = SKLabelNode(text: "\(shop.type.emoji) \(shop.type.name)")
+        sign.fontName = "AvenirNext-Bold"
+        sign.fontSize = 9
+        sign.fontColor = .white
+        sign.position = CGPoint(x: pos.x, y: pos.y + 8)
+        sign.zPosition = 12
+        worldNode.addChild(sign)
+
+        // Pulsing proximity ring
+        let ring = SKShapeNode(circleOfRadius: 55)
+        ring.position = pos
+        ring.fillColor = .clear
+        ring.strokeColor = shop.type.signColor
+        ring.lineWidth = 2
+        ring.lineDashPattern = [NSNumber(value: 6), NSNumber(value: 4)]
+        ring.zPosition = 11
+        ring.alpha = 0.6
+        let pulse = SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.15, duration: 1.0),
+            SKAction.fadeAlpha(to: 0.6, duration: 1.0)
+        ])
+        ring.run(SKAction.repeatForever(pulse))
+        worldNode.addChild(ring)
+
+        // Physics trigger
+        let triggerNode = SKNode()
+        triggerNode.position = pos
+        triggerNode.physicsBody = SKPhysicsBody(circleOfRadius: 70)
+        triggerNode.physicsBody?.isDynamic = false
+        triggerNode.physicsBody?.categoryBitMask = PhysicsCategory.shop
+        triggerNode.physicsBody?.contactTestBitMask = PhysicsCategory.player
+        triggerNode.name = "shop_\(shop.type)"
+        worldNode.addChild(triggerNode)
+
+    }
+
     // MARK: - Player
 
     private func setupPlayer() {
+        let scooterTier = viewModel?.equippedScooter ?? .basic
+        let scooterColor = viewModel?.scooterColor ?? .yellow
+
+        // Update physics constants from tier
+        maxSpeed = scooterTier.maxSpeed
+        thrustForce = scooterTier.thrust
+        turnSpeed = scooterTier.turnSpeed
+
+        let bodyColor = scooterColor.bodyColor
+        let strokeClr = scooterColor.strokeColor
+
         let body = SKShapeNode(rectOf: CGSize(width: 22, height: 12), cornerRadius: 3)
-        body.fillColor = UIColor(red: 1.0, green: 0.82, blue: 0.1, alpha: 1)
-        body.strokeColor = UIColor(red: 0.85, green: 0.7, blue: 0.05, alpha: 1)
+        body.fillColor = bodyColor
+        body.strokeColor = strokeClr
         body.lineWidth = 1.5
         body.zPosition = 10
 
+        // Turbo = orange-red body accent; Racing = silver accent
+        let frontColor: UIColor
+        switch scooterTier {
+        case .turbo: frontColor = UIColor(red: 1.0, green: 0.35, blue: 0.05, alpha: 1)
+        case .racing: frontColor = UIColor(red: 0.78, green: 0.78, blue: 0.82, alpha: 1)
+        default: frontColor = bodyColor.darker(by: 0.12)
+        }
+
         let front = SKShapeNode(rectOf: CGSize(width: 5, height: 8), cornerRadius: 1)
-        front.fillColor = UIColor(red: 0.9, green: 0.72, blue: 0.05, alpha: 1)
+        front.fillColor = frontColor
         front.strokeColor = .clear
         front.position = CGPoint(x: 10, y: 0)
         body.addChild(front)
@@ -496,7 +572,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         playerNode.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: 22, height: 12))
         playerNode.physicsBody?.categoryBitMask = PhysicsCategory.player
-        playerNode.physicsBody?.collisionBitMask = PhysicsCategory.building | PhysicsCategory.boundary
+        // A3 - remove boundary from collision so player can wrap
+        playerNode.physicsBody?.collisionBitMask = PhysicsCategory.building
         playerNode.physicsBody?.contactTestBitMask = PhysicsCategory.traffic | PhysicsCategory.police | PhysicsCategory.pickup | PhysicsCategory.delivery | PhysicsCategory.building
         playerNode.physicsBody?.allowsRotation = false
         playerNode.physicsBody?.linearDamping = 4.0
@@ -542,11 +619,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         markerNode.addChild(marker)
         deliveryMarker = marker
 
+        // E1 - Random window offset
+        deliveryWindowOffset = CGFloat.random(in: 10...55)
+
         let windowGlow = SKShapeNode(rectOf: CGSize(width: 18, height: 14), cornerRadius: 2)
         windowGlow.fillColor = UIColor(red: 1.0, green: 0.95, blue: 0.5, alpha: 0.9)
         windowGlow.strokeColor = UIColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 1)
         windowGlow.lineWidth = 1
-        windowGlow.position = CGPoint(x: buildingPos.x, y: buildingPos.y + 25)
+        windowGlow.position = CGPoint(x: buildingPos.x, y: buildingPos.y + deliveryWindowOffset)
         windowGlow.zPosition = 15
         windowGlow.name = "windowGlow"
         let pulse = SKAction.sequence([
@@ -688,6 +768,33 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     func clearPolice() {
         policeNode.removeAllChildren()
+        viewModel?.policeChaseDistance = .infinity
+    }
+
+    // D2 - Respawn at police station
+    func respawnAtPoliceStation() {
+        let grid = cityTheme.policeStationGrid
+        let stationX = CGFloat(grid.0) * CityConfig.cellSize + CityConfig.roadWidth + CityConfig.blockSize / 2
+        let stationY = CGFloat(grid.1) * CityConfig.cellSize + CityConfig.roadWidth + CityConfig.blockSize / 2
+
+        playerNode.position = CGPoint(x: stationX, y: stationY)
+        playerNode.physicsBody?.velocity = .zero
+
+        // Brief white flash overlay
+        let flash = SKShapeNode(rectOf: CGSize(width: CityConfig.worldSize * 2, height: CityConfig.worldSize * 2))
+        flash.fillColor = .white
+        flash.strokeColor = .clear
+        flash.position = CGPoint(x: CityConfig.worldSize / 2, y: CityConfig.worldSize / 2)
+        flash.zPosition = 100
+        flash.alpha = 0.8
+        worldNode.addChild(flash)
+        flash.run(SKAction.sequence([
+            SKAction.fadeOut(withDuration: 0.5),
+            SKAction.removeFromParent()
+        ]))
+
+        // Snap camera
+        cameraNode.position = playerNode.position
     }
 
     // MARK: - Traffic
@@ -729,14 +836,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         node.name = "traffic"
         node.zPosition = 9
 
+        let accentColor = cityTheme.trafficAccentColor
         let carColors: [UIColor] = [
+            accentColor,
             UIColor(red: 0.7, green: 0.15, blue: 0.15, alpha: 1),
             UIColor(red: 0.2, green: 0.4, blue: 0.7, alpha: 1),
             UIColor(red: 0.82, green: 0.82, blue: 0.82, alpha: 1),
             UIColor(red: 0.12, green: 0.12, blue: 0.12, alpha: 1),
             UIColor(red: 0.2, green: 0.55, blue: 0.25, alpha: 1),
             UIColor(red: 0.6, green: 0.3, blue: 0.5, alpha: 1),
-            UIColor(red: 0.85, green: 0.75, blue: 0.3, alpha: 1),
             UIColor(red: 0.3, green: 0.3, blue: 0.35, alpha: 1),
         ]
 
@@ -774,7 +882,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         node.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: carW, height: carH))
         node.physicsBody?.categoryBitMask = PhysicsCategory.traffic
-        node.physicsBody?.collisionBitMask = PhysicsCategory.building | PhysicsCategory.boundary | PhysicsCategory.traffic
+        // A2 - remove boundary from traffic collision to prevent stacking at corners
+        node.physicsBody?.collisionBitMask = PhysicsCategory.building | PhysicsCategory.traffic
         node.physicsBody?.contactTestBitMask = PhysicsCategory.player
         node.physicsBody?.allowsRotation = false
         node.physicsBody?.linearDamping = 2.0
@@ -854,6 +963,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         updateTrafficLights(dt)
         updateMissionTimer(dt)
         updateThrowProximity()
+        updateShopProximity()
 
         crashCooldown = max(0, crashCooldown - dt)
         trafficSpawnTimer += dt
@@ -895,6 +1005,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         playerNode.physicsBody?.clampSpeed(to: maxSpeed)
 
+        // A3 - World-edge wrapping (Pac-Man style)
+        let ws = CityConfig.worldSize + CityConfig.roadWidth
+        if playerNode.position.x < 0    { playerNode.position.x = ws }
+        if playerNode.position.x > ws   { playerNode.position.x = 0  }
+        if playerNode.position.y < 0    { playerNode.position.y = ws }
+        if playerNode.position.y > ws   { playerNode.position.y = 0  }
+
         playerNode.zRotation = playerAngle
         viewModel?.playerPosition = playerNode.position
     }
@@ -913,8 +1030,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let vel = npcVelocities[ObjectIdentifier(vehicle)] ?? .zero
             vehicle.physicsBody?.velocity = vel
 
-            if vehicle.position.x < -60 || vehicle.position.x > ws + 60 ||
-               vehicle.position.y < -60 || vehicle.position.y > ws + 60 {
+            // A2 - Widen removal threshold to ±150 to despawn before visual clustering
+            if vehicle.position.x < -150 || vehicle.position.x > ws + 150 ||
+               vehicle.position.y < -150 || vehicle.position.y > ws + 150 {
                 npcVelocities.removeValue(forKey: ObjectIdentifier(vehicle))
                 vehicle.removeFromParent()
             }
@@ -922,18 +1040,31 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func updatePolice(_ dt: TimeInterval) {
+        guard let vm = viewModel else { return }
+
+        if policeNode.children.isEmpty {
+            vm.policeChaseDistance = .infinity
+            return
+        }
+
+        var minDist: CGFloat = .infinity
         for cop in policeNode.children {
             let dx = playerNode.position.x - cop.position.x
             let dy = playerNode.position.y - cop.position.y
+            let dist = hypot(dx, dy)
             let angle = atan2(dy, dx)
             cop.zRotation = angle
 
             let chaseSpeed: CGFloat = 220
             let force = CGVector(dx: cos(angle) * chaseSpeed * 3, dy: sin(angle) * chaseSpeed * 3)
             cop.physicsBody?.applyForce(force)
-
             cop.physicsBody?.clampSpeed(to: chaseSpeed)
+
+            if dist < minDist { minDist = dist }
         }
+
+        // D1 - Update police chase distance
+        vm.policeChaseDistance = minDist
     }
 
     private func updateTrafficLights(_ dt: TimeInterval) {
@@ -967,10 +1098,32 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let dist = hypot(playerNode.position.x - markerPos.x, playerNode.position.y - markerPos.y)
         vm.canThrow = dist < 80
 
+        // A1 - Fix: set canThrow = false immediately before calling throwPackage
         if vm.throwRequested && vm.canThrow {
             vm.throwRequested = false
+            vm.canThrow = false
             throwPackage(to: mission.delivery.worldPosition)
         }
+    }
+
+    // B3 - Shop proximity detection
+    private func updateShopProximity() {
+        guard let vm = viewModel else { return }
+        let playerPos = playerNode.position
+        var closest: Shop? = nil
+        var closestDist: CGFloat = .infinity
+
+        for shop in vm.shops {
+            let dx = playerPos.x - shop.worldPosition.x
+            let dy = playerPos.y - shop.worldPosition.y
+            let dist = hypot(dx, dy)
+            if dist < 70 && dist < closestDist {
+                closestDist = dist
+                closest = shop
+            }
+        }
+
+        vm.nearbyShop = closest
     }
 
     // MARK: - Package Throw
@@ -986,7 +1139,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         playerNode.childNode(withName: "//packageIndicator")?.isHidden = true
 
-        let windowTarget = CGPoint(x: target.x, y: target.y + 25)
+        // E1 - Use random deliveryWindowOffset instead of hardcoded 25
+        let windowTarget = CGPoint(x: target.x, y: target.y + deliveryWindowOffset)
         let flyAction = SKAction.move(to: windowTarget, duration: 0.5)
         flyAction.timingMode = .easeIn
 
@@ -1027,6 +1181,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func showDeliveryEffect(at position: CGPoint) {
+        // Existing particle burst
         showParticleEffect(at: position, count: 12, radiusRange: 2...5, distRange: 30...70,
                            duration: 0.6, colors: [.yellow, .orange, .green, .white])
         if let windowGlow = markerNode.childNode(withName: "windowGlow") {
@@ -1036,6 +1191,131 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             ])
             windowGlow.run(flash) { windowGlow.removeFromParent() }
         }
+
+        // E2 - Post-throw impact effects (random pick)
+        let effectChoice = Int.random(in: 0...2)
+        switch effectChoice {
+        case 0:
+            showBrokenWindowEffect(at: position)
+        case 1:
+            showFrightenedCatEffect(at: position)
+        default:
+            showAngryPersonEffect(at: position)
+        }
+    }
+
+    // E2 - Effect 0: Broken Window
+    private func showBrokenWindowEffect(at position: CGPoint) {
+        let shardCount = Int.random(in: 8...12)
+        let shardColors: [UIColor] = [.white, UIColor(white: 0.8, alpha: 1), UIColor(white: 0.6, alpha: 1)]
+        for _ in 0..<shardCount {
+            let w = CGFloat.random(in: 2...5)
+            let h = CGFloat.random(in: 6...14)
+            let shard = SKShapeNode(rectOf: CGSize(width: w, height: h))
+            shard.fillColor = shardColors.randomElement()!
+            shard.strokeColor = .clear
+            shard.position = position
+            shard.zRotation = CGFloat.random(in: 0...(.pi * 2))
+            shard.zPosition = 26
+            worldNode.addChild(shard)
+
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let dist = CGFloat.random(in: 15...40)
+            let target = CGPoint(x: position.x + cos(angle) * dist, y: position.y + sin(angle) * dist)
+            let move = SKAction.move(to: target, duration: 0.4)
+            move.timingMode = .easeOut
+            shard.run(SKAction.sequence([
+                SKAction.group([move, SKAction.fadeIn(withDuration: 0.4)]),
+                SKAction.fadeOut(withDuration: 0.3),
+                SKAction.removeFromParent()
+            ]))
+        }
+
+        // Flash the window glow white briefly
+        if let windowGlow = markerNode.childNode(withName: "windowGlow") as? SKShapeNode {
+            let origColor = windowGlow.fillColor
+            windowGlow.fillColor = .white
+            windowGlow.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.05),
+                SKAction.run { windowGlow.fillColor = UIColor(white: 0.1, alpha: 0.5) },
+                SKAction.wait(forDuration: 0.3),
+                SKAction.run { windowGlow.fillColor = origColor }
+            ]))
+        }
+    }
+
+    // E2 - Effect 1: Frightened Cat
+    private func showFrightenedCatEffect(at position: CGPoint) {
+        let cat = SKLabelNode(text: "😺")
+        cat.fontSize = 22
+        cat.verticalAlignmentMode = .center
+        cat.horizontalAlignmentMode = .center
+        cat.position = position
+        cat.zPosition = 27
+        worldNode.addChild(cat)
+
+        cat.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 1.6, duration: 0.3),
+                SKAction.moveBy(x: 0, y: 12, duration: 0.3)
+            ]),
+            SKAction.fadeOut(withDuration: 0.5),
+            SKAction.removeFromParent()
+        ]))
+
+        let meow = SKLabelNode(text: "Meow!")
+        meow.fontName = "AvenirNext-Bold"
+        meow.fontSize = 12
+        meow.fontColor = .white
+        meow.position = CGPoint(x: position.x + 12, y: position.y + 8)
+        meow.zPosition = 27
+        meow.alpha = 0
+        worldNode.addChild(meow)
+
+        meow.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.fadeIn(withDuration: 0.2),
+                SKAction.moveBy(x: 0, y: 10, duration: 0.8)
+            ]),
+            SKAction.fadeOut(withDuration: 0.2),
+            SKAction.removeFromParent()
+        ]))
+    }
+
+    // E2 - Effect 2: Angry Person
+    private func showAngryPersonEffect(at position: CGPoint) {
+        let angry = SKLabelNode(text: "😡")
+        angry.fontSize = 22
+        angry.verticalAlignmentMode = .center
+        angry.horizontalAlignmentMode = .center
+        angry.position = position
+        angry.zPosition = 27
+        worldNode.addChild(angry)
+
+        angry.run(SKAction.sequence([
+            SKAction.moveBy(x: 0, y: 8, duration: 0.15),
+            SKAction.wait(forDuration: 0.3),
+            SKAction.fadeOut(withDuration: 0.4),
+            SKAction.removeFromParent()
+        ]))
+
+        let hey = SKLabelNode(text: "Hey!!")
+        hey.fontName = "AvenirNext-Bold"
+        hey.fontSize = 12
+        hey.fontColor = UIColor(red: 1.0, green: 0.3, blue: 0.1, alpha: 1)
+        hey.position = CGPoint(x: position.x + 14, y: position.y + 4)
+        hey.zPosition = 27
+        hey.alpha = 0
+        worldNode.addChild(hey)
+
+        hey.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.fadeIn(withDuration: 0.2),
+                SKAction.moveBy(x: 4, y: 12, duration: 0.7)
+            ]),
+            SKAction.fadeOut(withDuration: 0.2),
+            SKAction.removeFromParent()
+        ]))
     }
 
     // MARK: - Contacts
