@@ -288,7 +288,7 @@ class GameViewModel {
         missionIconName = nil
         missionMessage = "🚔 Busted! Taken to the police station."
         soundManager.playEffect(.policeSiren)
-        applyCrashPenalty(50)
+        applyCrashPenalty(100)
         currentMission = nil
         canThrow = false
         policeAlert = false
