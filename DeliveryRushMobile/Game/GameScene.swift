@@ -23,6 +23,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private var pickupMarker: SKNode?
     private var deliveryMarker: SKNode?
+    private var throwInFlight: Bool = false
 
     private var greenLightNodes: [SKShapeNode] = []
     private var redLightNodes: [SKShapeNode] = []
@@ -62,6 +63,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         worldNode.addChild(trafficNode)
         worldNode.addChild(pedestrianNode)
         worldNode.addChild(markerNode)
+        markerNode.zPosition = 20
         worldNode.addChild(policeNode)
         worldNode.addChild(trafficLightNode)
 
@@ -532,7 +534,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     func showDeliveryMarker() {
         guard let mission = viewModel?.currentMission else { return }
-        pickupMarker?.removeFromParent()
+        markerNode.removeAllChildren()
         pickupMarker = nil
 
         let markerPos = mission.delivery.markerPosition
@@ -564,7 +566,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let container = SKNode()
         container.position = position
         container.name = name
-        container.zPosition = 8
+        container.zPosition = 20
 
         let ring = SKShapeNode(circleOfRadius: 30)
         ring.fillColor = color.withAlphaComponent(0.15)
@@ -616,6 +618,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         markerNode.removeAllChildren()
         pickupMarker = nil
         deliveryMarker = nil
+        throwInFlight = false
         missionTimerActive = false
         playerNode.childNode(withName: "//packageIndicator")?.isHidden = true
     }
@@ -958,6 +961,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func updateThrowProximity() {
+        guard !throwInFlight else { return }
         guard let vm = viewModel, let mission = vm.currentMission, mission.pickedUp else {
             viewModel?.canThrow = false
             return
@@ -969,6 +973,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if vm.throwRequested && vm.canThrow {
             vm.throwRequested = false
+            vm.canThrow = false
+            throwInFlight = true
             throwPackage(to: mission.delivery.worldPosition)
         }
     }
@@ -999,6 +1005,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let group = SKAction.group([flyAction, rotate, scale])
 
         pkg.run(group) { [weak self] in
+            self?.throwInFlight = false
             pkg.removeFromParent()
             self?.showDeliveryEffect(at: windowTarget)
             self?.viewModel?.deliverPackage()
@@ -1069,7 +1076,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if combined & PhysicsCategory.traffic != 0 && combined & PhysicsCategory.player != 0 {
             crashCooldown = 1.0
-            viewModel?.applyCrashPenalty(15)
+            let impactSpeed = hypot(
+                playerNode.physicsBody?.velocity.dx ?? 0,
+                playerNode.physicsBody?.velocity.dy ?? 0
+            )
+            viewModel?.applyCrashPenalty(35)
+            if impactSpeed > 150 {
+                viewModel?.policeAlert = true
+                viewModel?.missionMessage = "Hard crash! Police alerted!"
+            }
             applyCrashImpulse(contact)
             showCrashEffect(at: contact.contactPoint)
             return
@@ -1082,7 +1097,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             )
             if speed > 100 {
                 crashCooldown = 0.5
-                viewModel?.applyCrashPenalty(5)
+                viewModel?.applyCrashPenalty(10)
                 showCrashEffect(at: contact.contactPoint)
             }
         }
