@@ -36,3 +36,62 @@ SpriteKit game engine + SwiftUI overlay UI, MVVM pattern.
 - Missions: food ($50/50s), envelope ($75/40s), mafia ($200/65s + police chase)
 - Building textures are cached by seed (`[Int: SKTexture]`); traffic velocities stored in `[ObjectIdentifier: CGVector]`
 - Pedestrians are driven by `SKAction` (no per-frame update); traffic lights updated via stored `[SKShapeNode]` arrays
+- `PersistenceManager.swift` — UserDefaults singleton: save/load/clearSave for progress; settings (isRightHanded, musicVolume) persist separately
+
+## Feature Overview (current)
+
+- **Cities (10)**: New York(L1)→Istanbul(L2)→Riyadh(L3)→Tokyo(L4)→London(L5)→Paris(L6)→Sao Paulo(L7)→Mumbai(L8)→Lagos(L9)→Sydney(L10)
+- **Economy**: ScooterTier (basic/turbo/racing), GameTrack (8 tracks), ScooterColor (6 colors), 4 shop types per city
+- **Missions**: food($50/50s), envelope($75/40s), mafia($200/65s + police). Timer counts from mission assignment.
+- **Police**: chase on mafia pickup; also triggered by red light violations (8s cooldown, $10 fine)
+- **Crash penalties**: traffic $35, building $10, caught by police $100
+- **Throw**: `throwInFlight` flag prevents exploit; SFX: catMeow / glassCrash / "Hey!" (AVSpeechSynthesizer)
+- **Traffic AI**: cars stop at red lights (`redLightStoppedVelocities` dict), resume on green
+- **Pause/Save**: `pauseGame/resumeGame/saveAndExit` on `GameViewModel`; `hasSavedGame` drives "Continue" in main menu
+- **Settings**: `isRightHanded` mirrors joystick/action layout; `musicVolume` slider; clear save
+
+## Ways of Working (Agent Workflow)
+
+When implementing significant features, follow this pattern:
+
+### Parallel agent teams with worktrees
+```bash
+# Agents work in isolated git worktrees — no .pbxproj edits needed (PBXFileSystemSynchronizedRootGroup)
+git worktree add .claude/worktrees/<name> -b <branch>
+# After agents complete, merge sequentially (least to most conflicting)
+git merge <branch> --no-ff
+```
+
+### Each agent's routine (atomic work)
+1. Read relevant files before modifying anything
+2. Implement the feature/fix
+3. Spin up an Opus subagent to run `/simplify` on the changes
+4. Commit with a descriptive message
+
+### /simplify
+Run `/simplify` (via `Skill` tool) after every significant body of changes. It reviews for:
+- Unnecessary complexity / dead code
+- Reuse opportunities
+- Quality and efficiency issues
+
+### TDD
+- Write unit tests alongside feature code (target ~60% coverage)
+- Focus tests on: `GameViewModel` economy/mission/shop logic, `GameModels` enums/structs
+- Test file: `DeliveryRushMobileTests/DeliveryRushMobileTests.swift`
+- Run via: `make test` (requires SwiftLint + xcodebuild)
+
+### Static analysis
+- SwiftLint config: `.swiftlint.yml` (game-tuned — long files/functions allowed)
+- Run: `make lint` or `./scripts/lint.sh`
+- Exits 0 if SwiftLint not installed (CI-safe)
+
+### Merge conflict strategy
+Order merges from least-to-most conflicting. Common conflict sites:
+- `GameViewModel.swift`: keep ALL state vars + methods; never drop existing MARK sections
+- `GamePlayView.swift`: preserve existing overlays + add new ones; preserve shop/levelup/pause
+- `SoundManager.swift`: keep all music generators + add new cases
+- `GameScene.swift` traffic removal block: preserve wider ±150 threshold + new dict cleanup
+
+### Bundling
+Bundle fixes + features together — no separate urgent bug fix PRs unless breaking.
+

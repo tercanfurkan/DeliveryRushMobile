@@ -165,7 +165,8 @@ struct ShopView: View {
                         isEquipped: false,
                         canAfford: viewModel.money >= 100 && canPortal,
                         isDisabled: !canPortal,
-                        preview: .portal
+                        preview: .portal,
+                        portalDestination: destLevel
                     )
                 }
             }
@@ -202,9 +203,7 @@ struct ShopView: View {
             }
 
         case .portalStore:
-            if item.id.hasPrefix("portal_"),
-               let levelStr = item.id.split(separator: "_").last,
-               let targetLevel = Int(levelStr) {
+            if let targetLevel = item.portalDestination {
                 guard viewModel.money >= 100, viewModel.deliveriesThisLevel >= 8 else { return }
                 viewModel.money -= 100
                 viewModel.travelToLevel(targetLevel)
@@ -234,8 +233,8 @@ struct ShopItem: Identifiable {
     let isEquipped: Bool
     let canAfford: Bool
     var isDisabled: Bool = false
-    var previewColor: Color? = nil
     var preview: ShopItemPreview? = nil
+    var portalDestination: Int? = nil
 }
 
 // MARK: - Shop Item Card
@@ -250,14 +249,6 @@ struct ShopItemCard: View {
             // Preview artwork
             if let preview = item.preview {
                 previewView(preview)
-            } else if let previewColor = item.previewColor {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(previewColor)
-                    .frame(height: 44)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(.white.opacity(0.3), lineWidth: 1)
-                    )
             }
 
             Text(item.name)

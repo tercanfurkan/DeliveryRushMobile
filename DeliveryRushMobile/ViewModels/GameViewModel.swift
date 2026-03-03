@@ -94,7 +94,7 @@ class GameViewModel {
         soundManager.setup()
         isRightHanded = PersistenceManager.shared.isRightHanded
         musicVolume = PersistenceManager.shared.musicVolume
-        hasSavedGame = UserDefaults.standard.object(forKey: "money") != nil
+        hasSavedGame = PersistenceManager.shared.hasSavedGame()
         PersistenceManager.shared.load(into: self)
         soundManager.setMusicVolume(musicVolume)
     }
@@ -139,30 +139,21 @@ class GameViewModel {
         totalDeliveries = 0
         deliveriesThisLevel = 0
         currentLevel = 1
-        gamePhase = .playing
         currentMission = nil
-        canThrow = false
-        policeAlert = false
-        playerPosition = .zero
-        policeChaseDistance = .infinity
-        nearbyShop = nil
-        isShopOpen = false
-        pendingLevelTransition = false
-        currentTheme = CityTheme.theme(for: currentLevel)
-
-        generateShops()
-        makeScene()
-        soundManager.startMusic()
-        generateMission()
+        setupPlayingState()
     }
 
     func continueGame() {
+        isPaused = false
+        setupPlayingState()
+    }
+
+    private func setupPlayingState() {
         gamePhase = .playing
         canThrow = false
         policeAlert = false
         playerPosition = .zero
         policeChaseDistance = .infinity
-        isPaused = false
         nearbyShop = nil
         isShopOpen = false
         pendingLevelTransition = false
@@ -235,10 +226,20 @@ class GameViewModel {
         soundManager.stopMusic()
     }
 
-    func updateSettings(isRightHanded: Bool, volume: Float) {
-        self.isRightHanded = isRightHanded
-        PersistenceManager.shared.isRightHanded = isRightHanded
-        self.musicVolume = volume
+    func giveUp() {
+        isPaused = false
+        gamePhase = .menu
+        gameScene = nil
+        soundManager.stopMusic()
+    }
+
+    func setHandedness(_ value: Bool) {
+        isRightHanded = value
+        PersistenceManager.shared.isRightHanded = value
+    }
+
+    func setMusicVolume(_ volume: Float) {
+        musicVolume = volume
         PersistenceManager.shared.musicVolume = volume
         soundManager.setMusicVolume(volume)
     }

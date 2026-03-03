@@ -685,14 +685,9 @@ class SoundManager: NSObject, AVSpeechSynthesizerDelegate {
         }
 
         // Subtle atmospheric hiss: very low amplitude noise throughout
-        // Split into chunks to approximate a continuous low-amp noise layer
-        let chunkCount = 32
-        let chunkDur = totalDur / Double(chunkCount)
-        for c in 0..<chunkCount {
-            addTone(to: data, frameCount: frameCount,
-                    start: Double(c) * chunkDur, duration: chunkDur,
-                    freq: 3000, amp: 0.005, wave: .noise)
-        }
+        addTone(to: data, frameCount: frameCount,
+                start: 0, duration: totalDur,
+                freq: 3000, amp: 0.005, wave: .noise)
 
         return buffer
     }

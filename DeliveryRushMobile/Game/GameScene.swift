@@ -1105,9 +1105,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func updateTrafficAtLights() {
-        guard !trafficNode.children.isEmpty else { return }
         if trafficLightGreen {
-            // Restore all cars that were stopped at the red light
             guard !redLightStoppedVelocities.isEmpty else { return }
             for node in trafficNode.children {
                 let id = ObjectIdentifier(node)
@@ -1117,14 +1115,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 }
             }
         } else {
-            // Stop all moving cars that haven't been stopped yet
+            // All cars already stopped — nothing to do
+            guard redLightStoppedVelocities.count < npcVelocities.count else { return }
             for node in trafficNode.children {
                 let id = ObjectIdentifier(node)
-                guard redLightStoppedVelocities[id] == nil else { continue }
-                if let stored = npcVelocities[id], stored.dx != 0 || stored.dy != 0 {
-                    redLightStoppedVelocities[id] = stored
-                    npcVelocities[id] = .zero
-                }
+                guard redLightStoppedVelocities[id] == nil,
+                      let stored = npcVelocities[id], stored.dx != 0 || stored.dy != 0 else { continue }
+                redLightStoppedVelocities[id] = stored
+                npcVelocities[id] = .zero
             }
         }
     }
@@ -1132,11 +1130,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private func isPlayerAtIntersection() -> Bool {
         let pos = playerNode.position
         let cs = CityConfig.cellSize
-        let roadHalf = CityConfig.roadWidth / 2
-        let nearHorizontal = pos.y.truncatingRemainder(dividingBy: cs) < roadHalf * 1.5 ||
-                             pos.y.truncatingRemainder(dividingBy: cs) > cs - roadHalf * 1.5
-        let nearVertical = pos.x.truncatingRemainder(dividingBy: cs) < roadHalf * 1.5 ||
-                           pos.x.truncatingRemainder(dividingBy: cs) > cs - roadHalf * 1.5
+        let threshold = CityConfig.roadWidth * 0.75
+        let yMod = pos.y.truncatingRemainder(dividingBy: cs)
+        let xMod = pos.x.truncatingRemainder(dividingBy: cs)
+        let nearHorizontal = yMod < threshold || yMod > cs - threshold
+        let nearVertical   = xMod < threshold || xMod > cs - threshold
         return nearHorizontal && nearVertical
     }
 
@@ -1437,12 +1435,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if combined & PhysicsCategory.traffic != 0 && combined & PhysicsCategory.player != 0 {
             crashCooldown = 1.0
-            let impactSpeed = hypot(
-                playerNode.physicsBody?.velocity.dx ?? 0,
-                playerNode.physicsBody?.velocity.dy ?? 0
-            )
             viewModel?.applyCrashPenalty(35)
-            if impactSpeed > 150 {
+            if hypot(playerNode.physicsBody?.velocity.dx ?? 0,
+                     playerNode.physicsBody?.velocity.dy ?? 0) > 150 {
                 viewModel?.policeAlert = true
                 viewModel?.missionMessage = "Hard crash! Police alerted!"
             }

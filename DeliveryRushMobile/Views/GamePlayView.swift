@@ -110,12 +110,7 @@ struct GamePlayView: View {
                         .background(Color.white.opacity(0.15)).clipShape(.rect(cornerRadius: 12))
                 }
 
-                Button {
-                    viewModel.isPaused = false
-                    viewModel.gamePhase = .menu
-                    viewModel.gameScene = nil
-                    viewModel.soundManager.stopMusic()
-                } label: {
+                Button { viewModel.giveUp() } label: {
                     Text("Give Up")
                         .font(.system(size: 14))
                         .foregroundStyle(.red.opacity(0.8))

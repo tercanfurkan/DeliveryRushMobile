@@ -9,6 +9,10 @@ class PersistenceManager {
         case isRightHanded, musicVolume
     }
 
+    func hasSavedGame() -> Bool {
+        defaults.object(forKey: Key.money.rawValue) != nil
+    }
+
     // MARK: - Save game state
     func save(viewModel: GameViewModel) {
         defaults.set(viewModel.money, forKey: Key.money.rawValue)

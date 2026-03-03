@@ -177,7 +177,7 @@ private struct SettingsView: View {
                 Section("Controls") {
                     Toggle("Right-Handed Mode", isOn: Binding(
                         get: { viewModel.isRightHanded },
-                        set: { viewModel.updateSettings(isRightHanded: $0, volume: viewModel.musicVolume) }
+                        set: { viewModel.setHandedness($0) }
                     ))
                     Text("Moves the joystick to the right side of the screen.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -188,7 +188,7 @@ private struct SettingsView: View {
                         Image(systemName: "speaker.fill")
                         Slider(value: Binding(
                             get: { Double(viewModel.musicVolume) },
-                            set: { viewModel.updateSettings(isRightHanded: viewModel.isRightHanded, volume: Float($0)) }
+                            set: { viewModel.setMusicVolume(Float($0)) }
                         ), in: 0...1)
                         Image(systemName: "speaker.wave.3.fill")
                     }
